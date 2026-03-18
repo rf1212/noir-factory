@@ -51,11 +51,11 @@ function initializeAdminClient() {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
-    // Check for required environment variables
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.warn('⚠️  SUPABASE_URL or SUPABASE_SERVICE_KEY not set - using mock client');
-      console.warn('Set environment variables for production use');
-      console.warn('Required: SUPABASE_URL and SUPABASE_SERVICE_KEY');
+    // Fall back to anon key if service key not set
+    const effectiveKey = supabaseServiceKey || process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !effectiveKey) {
+      console.warn('⚠️  SUPABASE_URL and keys not set - using mock client');
       supabaseAdminClient = createMockClient();
       isAdminInitialized = true;
       return supabaseAdminClient;
@@ -66,8 +66,11 @@ function initializeAdminClient() {
       throw new Error('Invalid SUPABASE_URL format (must start with http/https)');
     }
 
-    // Create admin client with service role key (bypasses RLS)
-    supabaseAdminClient = createClient(supabaseUrl, supabaseServiceKey, {
+    // Create admin client (service key bypasses RLS, anon key uses RLS policies)
+    if (!supabaseServiceKey) {
+      console.warn('⚠️  Using SUPABASE_ANON_KEY as fallback (service key not set)');
+    }
+    supabaseAdminClient = createClient(supabaseUrl, effectiveKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,

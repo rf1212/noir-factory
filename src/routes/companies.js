@@ -57,7 +57,7 @@ router.get('/:id', requireAuth, async (req, res) => {
 
     // Verify user has access to this company
     const hasAccess = req.user.companies?.some(c => c.id === id);
-    if (!hasAccess && !req.user.isService) {
+    if (!hasAccess && !req.user.isService && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         error: 'Access denied'
@@ -102,7 +102,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 
     // Verify user has access to this company
     const hasAccess = req.user.companies?.some(c => c.id === id);
-    if (!hasAccess && !req.user.isService) {
+    if (!hasAccess && !req.user.isService && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         error: 'Access denied'

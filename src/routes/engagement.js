@@ -402,6 +402,97 @@ router.get('/stats', requireAuth, requireCompanyContext, async (req, res) => {
 });
 
 /**
+ * GET /api/engagement/stats/detailed
+ * Detailed stats by platform, by company, and aggregate
+ * Query params: ?period=today|week|month|all  &company_id=xxx  &platform=instagram
+ */
+router.get('/stats/detailed', requireAuth, async (req, res) => {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { period, company_id, platform } = req.query;
+
+    // Calculate date range
+    const now = new Date();
+    let since = new Date();
+    if (period === 'week') since.setDate(now.getDate() - 7);
+    else if (period === 'month') since.setDate(now.getDate() - 30);
+    else if (period === 'all') since = new Date('2020-01-01');
+    else since.setHours(0, 0, 0, 0); // today
+
+    // Build query
+    let query = supabase.from('engagement_log').select('*').gte('created_at', since.toISOString());
+    if (company_id) query = query.eq('company_id', company_id);
+    if (platform) query = query.eq('platform', platform);
+
+    const { data: logs } = await query.order('created_at', { ascending: false });
+    const items = logs || [];
+
+    // Aggregate by platform
+    const byPlatform = {};
+    items.forEach(l => {
+      if (!byPlatform[l.platform]) byPlatform[l.platform] = { likes: 0, comments: 0, follows: 0, dms: 0, replies: 0, total: 0 };
+      const p = byPlatform[l.platform];
+      if (l.action_type === 'like') p.likes++;
+      else if (l.action_type === 'comment' || l.action_type === 'first_comment') p.comments++;
+      else if (l.action_type === 'follow') p.follows++;
+      else if (l.action_type === 'dm') p.dms++;
+      else if (l.action_type === 'reply') p.replies++;
+      p.total++;
+    });
+
+    // Aggregate by company
+    const byCompany = {};
+    items.forEach(l => {
+      if (!byCompany[l.company_id]) byCompany[l.company_id] = { likes: 0, comments: 0, follows: 0, total: 0 };
+      const c = byCompany[l.company_id];
+      if (l.action_type === 'like') c.likes++;
+      else if (l.action_type === 'comment' || l.action_type === 'first_comment') c.comments++;
+      else if (l.action_type === 'follow') c.follows++;
+      c.total++;
+    });
+
+    // Overall totals
+    const totals = { likes: 0, comments: 0, follows: 0, dms: 0, replies: 0, first_comments: 0, total: items.length };
+    items.forEach(l => {
+      if (l.action_type === 'like') totals.likes++;
+      else if (l.action_type === 'comment') totals.comments++;
+      else if (l.action_type === 'first_comment') totals.first_comments++;
+      else if (l.action_type === 'follow') totals.follows++;
+      else if (l.action_type === 'dm') totals.dms++;
+      else if (l.action_type === 'reply') totals.replies++;
+    });
+
+    // Success rate
+    const successCount = items.filter(l => l.success).length;
+    totals.success_rate = items.length > 0 ? Math.round((successCount / items.length) * 100) : 0;
+
+    // Recent activity (last 20)
+    const recent = items.slice(0, 20).map(l => ({
+      id: l.id,
+      platform: l.platform,
+      action: l.action_type,
+      target: l.target_username || l.target_post_id,
+      text: l.comment_text,
+      success: l.success,
+      error: l.error_message,
+      time: l.created_at
+    }));
+
+    res.json({
+      success: true,
+      period: period || 'today',
+      totals,
+      by_platform: byPlatform,
+      by_company: byCompany,
+      recent
+    });
+  } catch (error) {
+    logger.error('Detailed engagement stats error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
  * GET /api/engagement/status
  * Alias for /api/engagement/config - Frontend compatibility
  */

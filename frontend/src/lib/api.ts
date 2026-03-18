@@ -171,6 +171,16 @@ export function getEngagementActivities() {
   return apiCall('/engagement/activities');
 }
 
+// Engagement Stats (detailed)
+export function getEngagementStatsDetailed(params?: { period?: string; company_id?: string; platform?: string }) {
+  const q = new URLSearchParams();
+  if (params?.period) q.set('period', params.period);
+  if (params?.company_id) q.set('company_id', params.company_id);
+  if (params?.platform) q.set('platform', params.platform);
+  const qs = q.toString();
+  return apiCall(`/engagement/stats/detailed${qs ? '?' + qs : ''}`);
+}
+
 // User
 export function getCurrentUser() {
   return apiCall('/auth/me');

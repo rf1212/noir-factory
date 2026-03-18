@@ -2,67 +2,83 @@ import { Outlet } from 'react-router-dom';
 import { BottomNav } from './BottomNav';
 import { CompanySwitcher } from './CompanySwitcher';
 import { useAuthStore } from '../store/authStore';
-import { LogOut, User } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function Layout() {
   const { user, logout } = useAuthStore();
   const [showMenu, setShowMenu] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div className="min-h-screen bg-noir-bg flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-gray-900 border-b border-gray-800 safe-area-top">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3 flex-1">
-            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-white">
-              N
+      <header className="sticky top-0 z-30 bg-noir-surface/80 backdrop-blur-md border-b border-noir-border safe-area-top">
+        <div className="px-4 py-4 flex items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent-primary to-accent-danger flex items-center justify-center font-black text-noir-bg">
+              ✦
             </div>
-            <span className="font-bold text-lg">Noir</span>
+            <span className="font-black text-lg tracking-tight text-text-primary">NOIR</span>
           </div>
 
+          {/* Company Switcher */}
           <CompanySwitcher />
 
+          {/* User Menu */}
           <div className="relative ml-4">
-            <button
+            <motion.button
               onClick={() => setShowMenu(!showMenu)}
-              className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-gray-700 transition-colors min-h-[44px] min-w-[44px]"
+              className="w-11 h-11 rounded-full bg-noir-surface border border-noir-border flex items-center justify-center hover:border-accent-primary transition-all duration-200 min-h-[44px] min-w-[44px]"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               {user?.avatar_url ? (
                 <img
                   src={user.avatar_url}
                   alt={user.name || 'User'}
-                  className="w-full h-full rounded-full"
+                  className="w-full h-full rounded-full object-cover"
                 />
               ) : (
-                <User className="w-5 h-5 text-gray-400" />
-              )}
-            </button>
-
-            {showMenu && (
-              <div className="absolute top-full right-0 mt-2 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-xl">
-                <div className="px-4 py-3 border-b border-gray-800">
-                  <p className="text-sm font-medium">{user?.name || user?.email}</p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
+                <div className="w-6 h-6 bg-accent-primary rounded-full flex items-center justify-center text-xs font-bold text-noir-bg">
+                  {user?.name?.[0]?.toUpperCase() || 'U'}
                 </div>
-                <button
-                  onClick={async () => {
-                    await logout();
-                    setShowMenu(false);
-                  }}
-                  className="w-full text-left px-4 py-3 text-red-400 hover:bg-gray-800 transition-colors flex items-center gap-2 min-h-[44px]"
+              )}
+            </motion.button>
+
+            <AnimatePresence>
+              {showMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full right-0 mt-3 w-56 bg-noir-surface border border-noir-border rounded-2xl shadow-2xl overflow-hidden"
                 >
-                  <LogOut className="w-4 h-4" />
-                  Logout
-                </button>
-              </div>
-            )}
+                  <div className="px-4 py-4 border-b border-noir-border">
+                    <p className="text-sm font-semibold text-text-primary">{user?.name || user?.email}</p>
+                    <p className="text-xs text-text-muted mt-1">{user?.email}</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      await logout();
+                      setShowMenu(false);
+                    }}
+                    className="w-full text-left px-4 py-3 text-accent-danger hover:bg-noir-surface-hover transition-colors flex items-center gap-3 min-h-[44px] font-medium"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </header>
 
       {/* Main content */}
-      <main className="flex-1 overflow-y-auto pb-24 max-w-md mx-auto w-full">
+      <main className="flex-1 overflow-y-auto pb-24 max-w-full">
         <Outlet />
       </main>
 

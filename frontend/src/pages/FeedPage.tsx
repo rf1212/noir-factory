@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useContentStore } from '../store/contentStore';
 import { SwipeCard } from '../components/SwipeCard';
-import { ChevronDown, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export function FeedPage() {
   const {
@@ -18,7 +18,7 @@ export function FeedPage() {
   } = useContentStore();
 
   const [isApproving, setIsApproving] = useState(false);
-  const [showFeedFilter, setShowFeedFilter] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchFeeds();
@@ -45,82 +45,77 @@ export function FeedPage() {
   const currentItem = contentItems[currentItemIndex] || null;
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Feed Filter */}
-      <div className="relative">
-        <button
-          onClick={() => setShowFeedFilter(!showFeedFilter)}
-          className="w-full flex items-center justify-between px-4 py-3 bg-gray-900 border border-gray-800 rounded-lg hover:bg-gray-800 transition-colors min-h-[44px]"
+    <div className="min-h-screen bg-noir-bg flex flex-col">
+      {/* Filter Pills - Horizontal Scroll */}
+      <div className="sticky top-20 z-20 bg-noir-bg/95 backdrop-blur-sm border-b border-noir-border px-4 pt-4 pb-3">
+        <div
+          ref={scrollContainerRef}
+          className="flex gap-2 overflow-x-auto scrollbar-hide"
         >
-          <span className="text-sm font-medium">
-            {selectedFeedId
-              ? feeds.find((f) => f.id === selectedFeedId)?.name || 'Filter'
-              : 'All Feeds'}
-          </span>
-          <ChevronDown
-            className={`w-4 h-4 transition-transform ${
-              showFeedFilter ? 'rotate-180' : ''
+          {/* All Feeds button */}
+          <motion.button
+            onClick={() => setSelectedFeedId(null)}
+            className={`flex-shrink-0 px-4 py-2 rounded-full font-semibold text-sm transition-all duration-200 min-h-[44px] whitespace-nowrap border ${
+              !selectedFeedId
+                ? 'bg-accent-primary text-noir-bg border-accent-primary shadow-lg shadow-accent-primary/30'
+                : 'border-noir-border text-text-secondary hover:text-text-primary hover:border-accent-primary/50'
             }`}
-          />
-        </button>
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            All Feeds
+          </motion.button>
 
-        {showFeedFilter && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-gray-800 rounded-lg shadow-xl z-50">
-            <button
-              onClick={() => {
-                setSelectedFeedId(null);
-                setShowFeedFilter(false);
-              }}
-              className={`w-full text-left px-4 py-3 text-sm border-b border-gray-800 transition-colors min-h-[44px] ${
-                !selectedFeedId ? 'bg-blue-500 bg-opacity-20 text-blue-400' : 'hover:bg-gray-800'
+          {/* Individual feed pills */}
+          {feeds.map((feed) => (
+            <motion.button
+              key={feed.id}
+              onClick={() => setSelectedFeedId(feed.id)}
+              className={`flex-shrink-0 px-4 py-2 rounded-full font-semibold text-sm transition-all duration-200 min-h-[44px] whitespace-nowrap border ${
+                selectedFeedId === feed.id
+                  ? 'bg-accent-primary text-noir-bg border-accent-primary shadow-lg shadow-accent-primary/30'
+                  : 'border-noir-border text-text-secondary hover:text-text-primary hover:border-accent-primary/50'
               }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              All Feeds
-            </button>
-            {feeds.map((feed) => (
-              <button
-                key={feed.id}
-                onClick={() => {
-                  setSelectedFeedId(feed.id);
-                  setShowFeedFilter(false);
-                }}
-                className={`w-full text-left px-4 py-3 text-sm border-b border-gray-800 last:border-b-0 transition-colors min-h-[44px] ${
-                  selectedFeedId === feed.id
-                    ? 'bg-blue-500 bg-opacity-20 text-blue-400'
-                    : 'hover:bg-gray-800'
-                }`}
-              >
-                {feed.name}
-              </button>
-            ))}
-          </div>
+              {feed.name}
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+        {/* Swipe Card */}
+        <SwipeCard
+          item={currentItem}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onRefresh={handleRefresh}
+          isLoading={loadingItems || isApproving}
+        />
+
+        {/* Counter - Enhanced */}
+        {contentItems.length > 0 && (
+          <motion.div
+            className="mt-8 text-center space-y-2"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-4xl font-black text-accent-primary">{currentItemIndex + 1}</span>
+              <span className="text-2xl text-text-muted">/</span>
+              <span className="text-2xl font-semibold text-text-secondary">{contentItems.length}</span>
+            </div>
+            <p className="text-xs text-text-muted uppercase tracking-wider">Items in queue</p>
+          </motion.div>
         )}
       </div>
 
-      {/* Pull to refresh */}
-      <div className="flex items-center justify-center gap-2 text-xs text-gray-500 py-2">
-        <RefreshCw className="w-4 h-4" />
-        Pull down to refresh
-      </div>
-
-      {/* Swipe Card */}
-      <SwipeCard
-        item={currentItem}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        onRefresh={handleRefresh}
-        isLoading={loadingItems || isApproving}
-      />
-
-      {/* Counter */}
-      {contentItems.length > 0 && (
-        <div className="text-center text-sm text-gray-500">
-          {currentItemIndex + 1} / {contentItems.length}
-        </div>
-      )}
-
-      {/* Bottom spacer for safe area */}
-      <div className="h-4" />
+      {/* Bottom spacer for safe area and nav */}
+      <div className="h-8" />
     </div>
   );
 }

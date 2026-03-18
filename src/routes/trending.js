@@ -81,6 +81,33 @@ const MOCK_TRENDING_DATA = {
       score: 6800,
       volume: 620,
       timestamp: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString()
+    },
+    {
+      id: 'trend-9',
+      platform: 'news',
+      topic: 'Airport WiFi Security Risks',
+      hashtag: '#CyberSecurity',
+      score: 8200,
+      volume: 890,
+      timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString()
+    },
+    {
+      id: 'trend-10',
+      platform: 'news',
+      topic: 'TSA Changes Travel Rules for 2026',
+      hashtag: '#Travel',
+      score: 7500,
+      volume: 720,
+      timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString()
+    },
+    {
+      id: 'trend-11',
+      platform: 'news',
+      topic: 'Data Privacy Laws Expand to Cover Public WiFi',
+      hashtag: '#Privacy',
+      score: 6900,
+      volume: 550,
+      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
     }
   ]
 };
@@ -95,20 +122,15 @@ router.get('/', async (req, res) => {
   try {
     const { platform = 'all' } = req.query;
 
-    // Validate platform parameter
-    const validPlatforms = ['all', 'reddit', 'twitter', 'tiktok', 'instagram'];
-    if (!validPlatforms.includes(platform)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid platform. Must be one of: all, reddit, twitter, tiktok, instagram'
-      });
-    }
+    // Accept any platform — filter what we have, return empty for unknown
+    const validPlatforms = ['all', 'reddit', 'twitter', 'x_twitter', 'tiktok', 'instagram', 'facebook', 'youtube', 'linkedin', 'threads', 'news'];
+    const normalizedPlatform = (!platform || platform === '') ? 'all' : platform.toLowerCase();
 
     let trendingData = MOCK_TRENDING_DATA.all;
 
     // Filter by platform if specified
-    if (platform !== 'all') {
-      trendingData = trendingData.filter(item => item.platform === platform);
+    if (normalizedPlatform !== 'all') {
+      trendingData = trendingData.filter(item => item.platform === normalizedPlatform);
     }
 
     // Sort by score descending

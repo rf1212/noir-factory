@@ -379,7 +379,8 @@ router.get('/stats', requireAuth, requireCompanyContext, async (req, res) => {
       likes: 0,
       comments: 0,
       follows: 0,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isDemoData: false
     };
 
     (logs || []).forEach(log => {
@@ -387,6 +388,15 @@ router.get('/stats', requireAuth, requireCompanyContext, async (req, res) => {
       if (log.action_type === 'comment') stats.comments += log.action_count || 0;
       if (log.action_type === 'follow') stats.follows += log.action_count || 0;
     });
+
+    // If all stats are zero, return demo data with indicator
+    if (stats.likes === 0 && stats.comments === 0 && stats.follows === 0) {
+      stats.likes = 47;
+      stats.comments = 12;
+      stats.follows = 8;
+      stats.isDemoData = true;
+      stats.message = 'Demo data — connect accounts to see real stats';
+    }
 
     res.json({
       success: true,

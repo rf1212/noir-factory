@@ -38,10 +38,34 @@ router.post('/', requireAuth, requireCompanyContext, async (req, res) => {
     const { name, url, type } = req.body;
     if (!name || !url) return res.status(400).json({ success: false, error: 'Name and URL required' });
 
+    // Validate feed type
+    const validTypes = ['generic', 'rss', 'reddit', 'twitter', 'instagram', 'tiktok', 'linkedin', 'competitor'];
+    const feedType = type || 'generic';
+    if (!validTypes.includes(feedType)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid feed type. Must be one of: ${validTypes.join(', ')}`
+      });
+    }
+
+    // For competitor feeds, validate that URL is provided (will be a social media profile URL)
+    if (feedType === 'competitor' && !url) {
+      return res.status(400).json({
+        success: false,
+        error: 'Competitor feeds require a social media profile URL'
+      });
+    }
+
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from('rss_feeds')
-      .insert({ company_id: req.company.id, feed_name: name, feed_url: url, feed_type: type || 'generic', is_active: true })
+      .insert({
+        company_id: req.company.id,
+        feed_name: name,
+        feed_url: url,
+        feed_type: feedType,
+        is_active: true
+      })
       .select()
       .single();
 
@@ -64,7 +88,17 @@ router.put('/:id', requireAuth, requireCompanyContext, async (req, res) => {
     const updates = { updated_at: new Date().toISOString() };
     if (name) updates.feed_name = name;
     if (url) updates.feed_url = url;
-    if (type) updates.feed_type = type;
+    if (type) {
+      // Validate feed type
+      const validTypes = ['generic', 'rss', 'reddit', 'twitter', 'instagram', 'tiktok', 'linkedin', 'competitor'];
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid feed type. Must be one of: ${validTypes.join(', ')}`
+        });
+      }
+      updates.feed_type = type;
+    }
 
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase.from('rss_feeds')

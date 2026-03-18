@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const { getSupabaseAdmin, createSupabaseClient } = require('../db/supabase');
+const { repurposeForPlatforms, getRepurposedJobs } = require('../services/repurpose.service');
 const logger = require('../utils/logger');
 
 /**
@@ -223,6 +224,117 @@ router.patch('/:id', async (req, res) => {
 
   } catch (error) {
     logger.error('PATCH /content-jobs/:id error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/content-jobs/:id/repurpose
+ * Create repurposed versions of a content job for multiple platforms
+ * Body: { platforms: ['instagram', 'facebook', 'tiktok'] }
+ */
+router.post('/:id/repurpose', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 'x-company-id': companyId } = req.headers;
+    const { platforms } = req.body;
+
+    if (!companyId) {
+      return res.status(400).json({
+        success: false,
+        error: 'X-Company-ID header is required'
+      });
+    }
+
+    if (!Array.isArray(platforms) || platforms.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'platforms array is required and must have at least one platform'
+      });
+    }
+
+    const client = getSupabaseAdmin();
+
+    // Verify parent job exists and belongs to company
+    const { data: parentJob, error: parentError } = await client
+      .from('content_jobs')
+      .select('*')
+      .eq('id', id)
+      .eq('company_id', companyId)
+      .single();
+
+    if (parentError || !parentJob) {
+      return res.status(404).json({
+        success: false,
+        error: 'Job not found'
+      });
+    }
+
+    // Create repurposed jobs for each platform
+    const childJobs = await repurposeForPlatforms(parentJob, platforms, companyId);
+
+    res.status(201).json({
+      success: true,
+      message: `Created ${childJobs.length} repurposed job(s)`,
+      parent_job_id: id,
+      child_jobs: childJobs
+    });
+  } catch (error) {
+    logger.error('POST /content-jobs/:id/repurpose error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/content-jobs/:id/repurposed
+ * Get all repurposed versions of a content job
+ */
+router.get('/:id/repurposed', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 'x-company-id': companyId } = req.headers;
+
+    if (!companyId) {
+      return res.status(400).json({
+        success: false,
+        error: 'X-Company-ID header is required'
+      });
+    }
+
+    const client = getSupabaseAdmin();
+
+    // Verify parent job exists and belongs to company
+    const { data: parentJob, error: parentError } = await client
+      .from('content_jobs')
+      .select('id')
+      .eq('id', id)
+      .eq('company_id', companyId)
+      .single();
+
+    if (parentError || !parentJob) {
+      return res.status(404).json({
+        success: false,
+        error: 'Job not found'
+      });
+    }
+
+    // Get all child jobs
+    const childJobs = await getRepurposedJobs(id);
+
+    res.json({
+      success: true,
+      parent_job_id: id,
+      count: childJobs.length,
+      data: childJobs
+    });
+  } catch (error) {
+    logger.error('GET /content-jobs/:id/repurposed error:', error);
     res.status(500).json({
       success: false,
       error: error.message

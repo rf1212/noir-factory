@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useContentStore } from '../store/contentStore';
 import { SwipeCard } from '../components/SwipeCard';
+import { ApproveBottomSheet } from '../components/ApproveBottomSheet';
 import { motion } from 'framer-motion';
+import type { ContentItem } from '../types';
 
 export function FeedPage() {
   const {
@@ -17,8 +19,8 @@ export function FeedPage() {
     fetchFeeds,
   } = useContentStore();
 
-  const [isApproving, setIsApproving] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showApproveSheet, setShowApproveSheet] = useState(false);
+  const [scrollContainerRef] = useState(useRef<HTMLDivElement>(null));
 
   useEffect(() => {
     fetchFeeds();
@@ -26,12 +28,7 @@ export function FeedPage() {
   }, [selectedFeedId]);
 
   const handleApprove = () => {
-    setIsApproving(true);
-    // Navigate to bottom sheet for job creation
-    setTimeout(() => {
-      nextContentItem();
-      setIsApproving(false);
-    }, 300);
+    setShowApproveSheet(true);
   };
 
   const handleReject = async () => {
@@ -40,6 +37,11 @@ export function FeedPage() {
 
   const handleRefresh = () => {
     fetchContentItems(selectedFeedId || undefined);
+  };
+
+  const handleApproveComplete = async () => {
+    setShowApproveSheet(false);
+    await nextContentItem();
   };
 
   const currentItem = contentItems[currentItemIndex] || null;
@@ -93,7 +95,7 @@ export function FeedPage() {
           onApprove={handleApprove}
           onReject={handleReject}
           onRefresh={handleRefresh}
-          isLoading={loadingItems || isApproving}
+          isLoading={loadingItems}
         />
 
         {/* Counter - Enhanced */}
@@ -113,6 +115,16 @@ export function FeedPage() {
           </motion.div>
         )}
       </div>
+
+      {/* Approve Bottom Sheet */}
+      {currentItem && (
+        <ApproveBottomSheet
+          isOpen={showApproveSheet}
+          onClose={() => setShowApproveSheet(false)}
+          onComplete={handleApproveComplete}
+          contentItem={currentItem}
+        />
+      )}
 
       {/* Bottom spacer for safe area and nav */}
       <div className="h-8" />

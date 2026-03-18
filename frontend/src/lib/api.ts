@@ -61,6 +61,13 @@ export function createContentJob(jobData: {
   target_platforms: string[];
   first_comment?: string;
   avatar_name?: string;
+  caption_text?: string;
+  hashtags_text?: string;
+  hook_text?: string;
+  on_screen_text?: string;
+  layout_type?: string;
+  is_evergreen?: boolean;
+  evergreen_interval_days?: number;
 }) {
   return apiCall('/content-jobs', { method: 'POST', body: jobData });
 }

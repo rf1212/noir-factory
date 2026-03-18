@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Noir Factory — Video Layout Options v2</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0A0A0F; color: #F8F9FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 20px; }
+  h1 { text-align: center; font-size: 28px; font-weight: 800; margin-bottom: 8px; letter-spacing: -0.5px; }
+  .sub { text-align: center; color: #6C5CE7; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 32px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; max-width: 1100px; margin: 0 auto; }
+  .card { background: #13131A; border: 2px solid #1E1E2E; border-radius: 16px; padding: 12px; cursor: pointer; transition: all 0.2s; }
+  .card:hover { border-color: #6C5CE7; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(108,92,231,0.15); }
+  .card.selected { border-color: #6C5CE7; background: #1A1A28; }
+  .phone { width: 100%; aspect-ratio: 9/16; background: #000; border-radius: 12px; overflow: hidden; position: relative; margin-bottom: 10px; }
+  .label { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .desc { font-size: 11px; color: #6B7280; line-height: 1.4; }
+  .tag { display: inline-block; background: #6C5CE720; color: #6C5CE7; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin-top: 6px; }
+  .tag.new { background: #00D68F20; color: #00D68F; }
+  .tag.star { background: #FDCB6E20; color: #FDCB6E; }
+  .tag.cost { background: #00D68F20; color: #00D68F; }
+
+  /* Shared elements */
+  .avatar-pip { position: absolute; width: 30%; aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: linear-gradient(135deg, #6C5CE7, #a29bfe); display: flex; align-items: center; justify-content: center; border: 2px solid #0A0A0F; }
+  .avatar-pip .face { font-size: 18px; }
+  .avatar-pip.br { bottom: 8px; right: 8px; }
+  .avatar-pip.bl { bottom: 8px; left: 8px; }
+  .avatar-pip.small { width: 20%; }
+
+  /* ========== LAYOUT 1: Reddit BG + PiP (FIXED: more text, less whitespace) ========== */
+  .l1-bg { width: 100%; height: 100%; background: #0e1113; display: flex; flex-direction: column; }
+  .l1-post { flex: 1; background: #1a1a2e; margin: 4px; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; }
+  .l1-post .sub-tag { font-size: 6px; color: #FF4500; font-weight: 700; margin-bottom: 3px; display: flex; align-items: center; gap: 2px; }
+  .l1-post .sub-tag::before { content: ''; width: 8px; height: 8px; background: #FF4500; border-radius: 50%; display: inline-block; }
+  .l1-post .title { font-size: 9px; font-weight: 800; color: #fff; line-height: 1.35; margin-bottom: 6px; }
+  .l1-post .body { font-size: 7px; color: #ccc; line-height: 1.5; flex: 1; }
+  .l1-post .meta { font-size: 5px; color: #666; margin-top: 4px; display: flex; gap: 8px; }
+
+  /* ========== LAYOUT 2: Split Vertical ========== */
+  .l2-top { height: 35%; background: linear-gradient(135deg, #6C5CE7, #a29bfe); display: flex; align-items: center; justify-content: center; }
+  .l2-top .face { font-size: 32px; }
+  .l2-bottom { height: 65%; background: #1a1a2e; padding: 8px; }
+  .l2-bottom .sub-tag { font-size: 6px; color: #FF4500; font-weight: 700; margin-bottom: 3px; }
+  .l2-bottom .title { font-size: 8px; font-weight: 800; color: #fff; line-height: 1.3; margin-bottom: 4px; }
+  .l2-bottom .body { font-size: 6px; color: #ccc; line-height: 1.4; }
+
+  /* ========== LAYOUT 3: Hook Then Reddit ========== */
+  .l3-hook { position: absolute; width: 100%; height: 100%; background: linear-gradient(135deg, #6C5CE7, #a29bfe); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2; }
+  .l3-hook .face { font-size: 48px; margin-bottom: 8px; }
+  .l3-hook .hook-text { font-size: 9px; font-weight: 800; text-align: center; padding: 0 14px; line-height: 1.4; }
+  .l3-label { position: absolute; top: 4px; right: 4px; background: #FF475790; font-size: 6px; padding: 2px 6px; border-radius: 4px; z-index: 3; font-weight: 700; }
+
+  /* ========== LAYOUT 4: Text-First Zoomed (FIXED: bigger text, more content) ========== */
+  .l4-bg { width: 100%; height: 100%; background: #111; display: flex; flex-direction: column; padding: 8px; }
+  .l4-post { flex: 1; background: #1a1a2e; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; }
+  .l4-post .sub-tag { font-size: 7px; color: #FF4500; font-weight: 700; margin-bottom: 5px; }
+  .l4-post .title { font-size: 11px; font-weight: 900; color: #fff; line-height: 1.35; margin-bottom: 8px; }
+  .l4-post .body { font-size: 8px; color: #ccc; line-height: 1.6; flex: 1; }
+
+  /* ========== LAYOUT 5: Faceless ========== */
+  .l5-bg { width: 100%; height: 100%; background: linear-gradient(180deg, #0a0a1a 0%, #12122a 50%, #0a0a1a 100%); display: flex; align-items: center; justify-content: center; padding: 8px; }
+  .l5-card { background: #1a1a2e; border-radius: 8px; padding: 10px; width: 100%; border: 1px solid #2a2a3e; }
+  .l5-card .sub-tag { font-size: 6px; color: #FF4500; font-weight: 700; margin-bottom: 4px; }
+  .l5-card .title { font-size: 9px; font-weight: 800; color: #fff; line-height: 1.35; margin-bottom: 6px; }
+  .l5-card .body { font-size: 6.5px; color: #aaa; line-height: 1.5; }
+
+  /* ========== LAYOUT 6: News Overlay (FIXED: avatar doesn't block text) ========== */
+  .l6-bg { width: 100%; height: 100%; background: linear-gradient(180deg, #0f0c29 0%, #1a1a3e 60%, #0f0c29 100%); position: relative; }
+  .l6-avatar { position: absolute; top: 8%; right: 8px; width: 28%; aspect-ratio: 1; border-radius: 50%; background: linear-gradient(135deg, #6C5CE7, #a29bfe); display: flex; align-items: center; justify-content: center; border: 2px solid #fff; z-index: 2; }
+  .l6-avatar .face { font-size: 20px; }
+  .l6-content { position: absolute; bottom: 0; left: 0; right: 0; }
+  .l6-chyron { background: linear-gradient(0deg, #c0392b 0%, #e74c3c 100%); padding: 8px 10px 6px; }
+  .l6-chyron .breaking { font-size: 6px; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
+  .l6-chyron .breaking::before { content: '⚡'; }
+  .l6-chyron .headline { font-size: 8.5px; font-weight: 700; color: #fff; line-height: 1.35; }
+  .l6-chyron .subline { font-size: 6px; color: #ffcccc; margin-top: 3px; }
+  .l6-ticker { background: #111; padding: 3px 8px; display: flex; align-items: center; gap: 6px; }
+  .l6-ticker .live { background: #e74c3c; color: #fff; font-size: 5px; font-weight: 800; padding: 1px 4px; border-radius: 2px; }
+  .l6-ticker span { font-size: 5px; color: #888; letter-spacing: 0.5px; }
+
+  /* ========== LAYOUT 7: Quote Card ========== */
+  .l7-bg { width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 16px; text-align: center; position: relative; }
+  .l7-mark { font-size: 36px; opacity: 0.25; font-family: Georgia, serif; line-height: 1; }
+  .l7-text { font-size: 9.5px; font-weight: 700; line-height: 1.6; margin: 6px 0 14px; }
+  .l7-author { font-size: 7px; opacity: 0.7; font-weight: 600; }
+  .l7-brand { position: absolute; bottom: 10px; font-size: 7px; font-weight: 800; opacity: 0.4; letter-spacing: 3px; }
+
+  /* ========== LAYOUT 8: Reaction ========== */
+  .l8-bg { width: 100%; height: 100%; background: linear-gradient(135deg, #6C5CE7, #a29bfe); position: relative; display: flex; align-items: center; justify-content: center; }
+  .l8-face { font-size: 64px; }
+  .l8-pip { position: absolute; top: 8px; right: 8px; width: 38%; background: #1a1a2e; border-radius: 6px; padding: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.4); border: 1px solid #2a2a3e; }
+  .l8-pip .sub-tag { font-size: 5px; color: #FF4500; font-weight: 700; margin-bottom: 2px; }
+  .l8-pip .title { font-size: 5.5px; font-weight: 700; color: #fff; line-height: 1.3; }
+
+  /* ========== LAYOUT 9: Scroll-through (NEW) ========== */
+  .l9-bg { width: 100%; height: 100%; background: #111; position: relative; overflow: hidden; }
+  .l9-scroll { position: absolute; top: 8px; left: 8px; right: 8px; bottom: 50px; background: #1a1a2e; border-radius: 6px; padding: 8px; }
+  .l9-scroll .sub-tag { font-size: 6px; color: #FF4500; font-weight: 700; margin-bottom: 4px; }
+  .l9-scroll .title { font-size: 8px; font-weight: 800; color: #fff; line-height: 1.35; margin-bottom: 6px; }
+  .l9-scroll .body { font-size: 6.5px; color: #ccc; line-height: 1.55; }
+  .l9-scroll .highlight { background: #6C5CE730; color: #fff; padding: 0 2px; border-radius: 2px; }
+  .l9-arrow { position: absolute; bottom: 62px; left: 50%; transform: translateX(-50%); color: #6C5CE7; font-size: 10px; opacity: 0.6; animation: scrollpulse 1.5s ease-in-out infinite; }
+  @keyframes scrollpulse { 0%,100% { transform: translateX(-50%) translateY(0); opacity:0.4; } 50% { transform: translateX(-50%) translateY(4px); opacity:0.8; } }
+  .l9-avatar-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 44px; background: #0a0a0f; display: flex; align-items: center; padding: 0 8px; gap: 6px; border-top: 1px solid #1E1E2E; }
+  .l9-avatar-bar .av { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #6C5CE7, #a29bfe); display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .l9-avatar-bar .wave { flex: 1; height: 16px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='16'%3E%3Cpath d='M0 8 Q5 2 10 8 Q15 14 20 8 Q25 2 30 8 Q35 14 40 8 Q45 2 50 8 Q55 14 60 8 Q65 2 70 8 Q75 14 80 8' fill='none' stroke='%236C5CE7' stroke-width='1.5'/%3E%3C/svg%3E") repeat-x center; opacity: 0.6; }
+
+  /* ========== LAYOUT 10: Duet Style (NEW) ========== */
+  .l10-bg { width: 100%; height: 100%; display: flex; }
+  .l10-left { width: 45%; background: linear-gradient(135deg, #6C5CE7, #a29bfe); display: flex; align-items: center; justify-content: center; }
+  .l10-left .face { font-size: 36px; }
+  .l10-right { width: 55%; background: #1a1a2e; padding: 8px; display: flex; flex-direction: column; }
+  .l10-right .sub-tag { font-size: 5px; color: #FF4500; font-weight: 700; margin-bottom: 3px; }
+  .l10-right .title { font-size: 7px; font-weight: 800; color: #fff; line-height: 1.35; margin-bottom: 4px; }
+  .l10-right .body { font-size: 5.5px; color: #ccc; line-height: 1.5; flex: 1; }
+  .l10-divider { width: 1px; background: #000; }
+
+  /* ========== LAYOUT 11: Word-by-Word Reveal (NEW) ========== */
+  .l11-bg { width: 100%; height: 100%; background: #0a0a1a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 14px; text-align: center; position: relative; }
+  .l11-text { font-size: 12px; font-weight: 900; color: #fff; line-height: 1.6; letter-spacing: -0.3px; }
+  .l11-text .dim { color: #333; }
+  .l11-text .bright { color: #fff; }
+  .l11-text .accent { color: #6C5CE7; }
+  .l11-avatar-sm { position: absolute; bottom: 12px; right: 12px; width: 24%; aspect-ratio: 1; border-radius: 50%; background: linear-gradient(135deg, #6C5CE7, #a29bfe); display: flex; align-items: center; justify-content: center; border: 2px solid #0a0a1a; }
+  .l11-avatar-sm .face { font-size: 16px; }
+  .l11-sub { position: absolute; top: 10px; left: 10px; font-size: 6px; color: #FF4500; font-weight: 700; background: #FF450015; padding: 2px 6px; border-radius: 10px; }
+  .l11-caption { position: absolute; bottom: 12px; left: 12px; font-size: 5.5px; color: #666; max-width: 55%; text-align: left; line-height: 1.3; }
+
+  .section-label { text-align: center; color: #9CA3AF; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin: 32px 0 16px; }
+  .divider { border: none; border-top: 1px solid #1E1E2E; margin: 24px auto; max-width: 1100px; }
+
+  .flow-box { max-width:1100px; margin:32px auto; background:#13131A; border-radius:16px; padding:20px; border:1px solid #1E1E2E; }
+  .flow-box .flow-title { font-size:14px; font-weight:700; margin-bottom:12px; }
+  .flow-steps { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .flow-step { background:#1E1E2E; border-radius:12px; padding:12px 16px; flex:1; min-width:180px; }
+  .flow-step .step-num { font-size:11px; color:#6C5CE7; font-weight:600; margin-bottom:4px; }
+  .flow-step .step-text { font-size:12px; }
+  .flow-arrow { color:#6C5CE7; font-weight:bold; }
+</style>
+</head>
+<body>
+
+<h1>Video Layout Options</h1>
+<p class="sub">Tap to select when approving content</p>
+
+<p class="section-label">Current Layouts</p>
+<div class="grid">
+
+  <!-- 1. PiP Reddit BG (FIXED: more text, dark theme) -->
+  <div class="card selected">
+    <div class="phone">
+      <div class="l1-bg">
+        <div class="l1-post">
+          <div class="sub-tag">r/AmITheAsshole</div>
+          <div class="title">AITA for refusing to pay back my sister after she lent me money?</div>
+          <div class="body">So my (28F) sister (32F) lent me $2,000 last year when I was between jobs. I've since paid her back $1,500 but she's demanding the rest immediately even though she knows I'm still struggling financially.
+
+She said if I don't pay by Friday she'll tell our parents I'm "irresponsible with money" and that I "take advantage of family."
+
+The thing is, she makes 3x what I make and she even admitted the money wasn't urgent for her.</div>
+          <div class="meta">⬆ 4.2k · 💬 1.8k · 6h ago</div>
+        </div>
+      </div>
+      <div class="avatar-pip br"><span class="face">🧑‍💼</span></div>
+    </div>
+    <div class="label">Reddit BG + Avatar PiP</div>
+    <div class="desc">Reddit fills frame with zoomed-in text, avatar overlay in corner.</div>
+    <span class="tag">Default</span>
+  </div>
+
+  <!-- 2. Split Vertical -->
+  <div class="card">
+    <div class="phone">
+      <div class="l2-top"><span class="face">🧑‍💼</span></div>
+      <div class="l2-bottom">
+        <div class="sub-tag">r/AmITheAsshole</div>
+        <div class="title">AITA for refusing to pay back my sister after she lent me money?</div>
+        <div class="body">So my (28F) sister (32F) lent me $2,000 last year when I was between jobs. I've since paid her back $1,500 but she's demanding the rest immediately even though she knows I'm still struggling financially. She said if I don't pay by Friday...</div>
+      </div>
+    </div>
+    <div class="label">Split Screen Vertical</div>
+    <div class="desc">Avatar top 35%, content bottom 65%. Clean separation.</div>
+  </div>
+
+  <!-- 3. Hook Then Reddit -->
+  <div class="card">
+    <div class="phone">
+      <div class="l3-hook">
+        <span class="face">🧑‍💼</span>
+        <div class="hook-text">"You won't believe what this sister did over $500..."</div>
+      </div>
+      <span class="l3-label">2s HOOK → PiP</span>
+    </div>
+    <div class="label">Avatar Hook → Reddit</div>
+    <div class="desc">Full-screen avatar for 2s hook, then transition to content + PiP.</div>
+    <span class="tag star">⭐ Top Performer</span>
+  </div>
+
+  <!-- 4. Text-First Zoomed (FIXED: bigger text, more visible) -->
+  <div class="card">
+    <div class="phone">
+      <div class="l4-bg">
+        <div class="l4-post">
+          <div class="sub-tag">r/AmITheAsshole</div>
+          <div class="title">AITA for refusing to pay back my sister?</div>
+          <div class="body">So my (28F) sister (32F) lent me $2,000 last year when I was between jobs. I've since paid her back $1,500 but she's demanding the rest immediately even though she knows I'm still struggling financially.
+
+She said if I don't pay by Friday she'll tell our parents I'm "irresponsible with money."
+
+The thing is, she makes 3x what I make.</div>
+        </div>
+      </div>
+      <div class="avatar-pip br small"><span class="face" style="font-size:12px">🧑‍💼</span></div>
+    </div>
+    <div class="label">Text-First (Zoomed)</div>
+    <div class="desc">Maximum readability — large text, micro avatar PiP. Focus on the story.</div>
+  </div>
+
+  <!-- 5. Faceless -->
+  <div class="card">
+    <div class="phone">
+      <div class="l5-bg">
+        <div class="l5-card">
+          <div class="sub-tag">r/AmITheAsshole</div>
+          <div class="title">AITA for refusing to pay back my sister after she lent me money?</div>
+          <div class="body">So my (28F) sister (32F) lent me $2,000 last year when I was between jobs. I've since paid her back $1,500 but she's demanding the rest immediately even though she knows I'm still struggling...</div>
+        </div>
+      </div>
+    </div>
+    <div class="label">Faceless (No Avatar)</div>
+    <div class="desc">Pure content with slow pan/zoom. No avatar, no voice cloning needed.</div>
+    <span class="tag cost">💰 Lowest Cost</span>
+  </div>
+
+</div>
+
+<hr class="divider">
+
+<p class="section-label">New Layouts</p>
+<div class="grid">
+
+  <!-- 6. News Overlay (FIXED: avatar doesn't block text) -->
+  <div class="card">
+    <div class="phone">
+      <div class="l6-bg">
+        <div class="l6-avatar"><span class="face">🧑‍💼</span></div>
+        <div class="l6-content">
+          <div class="l6-chyron">
+            <div class="breaking">BREAKING</div>
+            <div class="headline">Airport WiFi provider caught selling passenger browsing data to advertisers</div>
+            <div class="subline">Millions of travelers affected across 47 airports nationwide</div>
+          </div>
+          <div class="l6-ticker">
+            <span class="live">LIVE</span>
+            <span>PROXITAP NEWS • TRAVELER ALERT • DATA PRIVACY</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="label">News Overlay</div>
+    <div class="desc">Breaking news chyron + small avatar top-right. Avatar never blocks the text.</div>
+    <span class="tag new">NEW</span>
+  </div>
+
+  <!-- 7. Quote Card -->
+  <div class="card">
+    <div class="phone">
+      <div class="l7-bg">
+        <div class="l7-mark">"</div>
+        <div class="l7-text">Airport WiFi isn't free. You're paying with your data every time you connect.</div>
+        <div class="l7-author">— @proxitap</div>
+        <div class="l7-brand">PROXITAP</div>
+      </div>
+    </div>
+    <div class="label">Quote Card</div>
+    <div class="desc">Branded text on gradient. For tips, stats, hot takes. Static image — no video needed.</div>
+    <span class="tag new">NEW — Static</span>
+  </div>
+
+  <!-- 8. Reaction -->
+  <div class="card">
+    <div class="phone">
+      <div class="l8-bg">
+        <span class="l8-face">🧑‍💼</span>
+        <div class="l8-pip">
+          <div class="sub-tag">r/AmITheAsshole</div>
+          <div class="title">AITA for refusing to pay back my sister after she lent me money during hard times?</div>
+        </div>
+      </div>
+    </div>
+    <div class="label">Reaction</div>
+    <div class="desc">Full-screen avatar reacting, content as small PiP. High engagement format.</div>
+    <span class="tag new">NEW</span>
+  </div>
+
+  <!-- 9. Scroll-through (NEW) -->
+  <div class="card">
+    <div class="phone">
+      <div class="l9-bg">
+        <div class="l9-scroll">
+          <div class="sub-tag">r/AmITheAsshole</div>
+          <div class="title">AITA for refusing to pay back my sister?</div>
+          <div class="body">So my (28F) sister (32F) lent me $2,000 last year when I was between jobs. I've since paid her back $1,500 but she's demanding the rest immediately.
+
+<span class="highlight">She said if I don't pay by Friday she'll tell our parents.</span>
+
+The thing is, she makes 3x what I make and she even admitted the money wasn't urgent for her...</div>
+        </div>
+        <div class="l9-arrow">▼</div>
+        <div class="l9-avatar-bar">
+          <div class="av">🧑‍💼</div>
+          <div class="wave"></div>
+        </div>
+      </div>
+    </div>
+    <div class="label">Scroll-Through</div>
+    <div class="desc">Post scrolls up while avatar narrates in audio bar. Viewers stay to see the whole story.</div>
+    <span class="tag star">⭐ High Watch Time</span>
+  </div>
+
+  <!-- 10. Duet Style (NEW) -->
+  <div class="card">
+    <div class="phone">
+      <div class="l10-bg">
+        <div class="l10-left"><span class="face">🧑‍💼</span></div>
+        <div class="l10-divider"></div>
+        <div class="l10-right">
+          <div class="sub-tag">r/AmITheAsshole</div>
+          <div class="title">AITA for refusing to pay back my sister?</div>
+          <div class="body">So my (28F) sister (32F) lent me $2,000 last year when I was between jobs. I've since paid her back $1,500 but she's demanding the rest immediately even though she knows I'm still struggling financially. She said if I don't pay by Friday...</div>
+        </div>
+      </div>
+    </div>
+    <div class="label">Duet Style</div>
+    <div class="desc">Side-by-side — avatar left, content right. Mimics TikTok duet format.</div>
+    <span class="tag new">NEW</span>
+  </div>
+
+  <!-- 11. Word-by-Word Reveal (NEW) -->
+  <div class="card">
+    <div class="phone">
+      <div class="l11-bg">
+        <div class="l11-sub">r/AmITheAsshole</div>
+        <div class="l11-text">
+          <span class="dim">AITA for </span><span class="bright">refusing to pay back </span><span class="accent">my sister</span><span class="dim"> after she lent me money?</span>
+        </div>
+        <div class="l11-avatar-sm"><span class="face">🧑‍💼</span></div>
+        <div class="l11-caption">Avatar narrates while words appear one by one...</div>
+      </div>
+    </div>
+    <div class="label">Word-by-Word Reveal</div>
+    <div class="desc">Text appears word by word while avatar narrates. Impossible to scroll past.</div>
+    <span class="tag star">⭐ Highest Engagement</span>
+  </div>
+
+</div>
+
+<div class="flow-box">
+  <div class="flow-title">How it works in the app:</div>
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="step-num">STEP 1</div>
+      <div class="step-text">Swipe right on content</div>
+    </div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step">
+      <div class="step-num">STEP 2</div>
+      <div class="step-text">Pick a layout from this grid</div>
+    </div>
+    <span class="flow-arrow">→</span>
+    <div class="flow-step">
+      <div class="step-num">STEP 3</div>
+      <div class="step-text">Choose avatar + platforms → Generate</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

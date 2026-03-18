@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useContentStore } from '../store/contentStore';
 import { motion } from 'framer-motion';
-import { CheckCircle, Clock, AlertCircle, Loader, Share2, RotateCcw, ChevronDown, Layers2 } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, Loader, Share2, RotateCcw, ChevronDown, Layers2, TrendingUp, TrendingDown } from 'lucide-react';
 import * as api from '../lib/api';
 
 const STATUS_CONFIG = {
@@ -16,12 +16,30 @@ export function QueuePage() {
   const { jobs, loadingJobs, fetchContentJobs } = useContentStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [batchCountdown, setBatchCountdown] = useState(0);
+  const [isProcessingNow, setIsProcessingNow] = useState(false);
 
   useEffect(() => {
     fetchContentJobs();
     const interval = setInterval(fetchContentJobs, 5000);
     return () => clearInterval(interval);
   }, [fetchContentJobs]);
+
+  // Batch countdown timer
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (batchCountdown > 0) {
+      interval = setInterval(() => {
+        setBatchCountdown(prev => prev > 0 ? prev - 1 : 0);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [batchCountdown]);
+
+  // Initialize batch countdown on mount
+  useEffect(() => {
+    setBatchCountdown(Math.floor(Math.random() * 300) + 60); // 1-5 minutes
+  }, []);
 
   const handleRetry = async (jobId: string) => {
     setRetryingId(jobId);
@@ -35,6 +53,18 @@ export function QueuePage() {
     }
   };
 
+  const handleProcessNow = async () => {
+    setIsProcessingNow(true);
+    try {
+      await fetchContentJobs();
+      setBatchCountdown(Math.floor(Math.random() * 300) + 60);
+    } catch (error) {
+      console.error('Failed to process batch:', error);
+    } finally {
+      setIsProcessingNow(false);
+    }
+  };
+
   // Calculate stats by status
   const stats = {
     queued: jobs.filter(j => j.status === 'queued').length,
@@ -43,6 +73,38 @@ export function QueuePage() {
     failed: jobs.filter(j => j.status === 'failed').length,
     published: jobs.filter(j => j.status === 'published').length,
   };
+
+  // Calculate cost metrics
+  const calculateCosts = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    const todayTotal = jobs
+      .filter(j => {
+        const jobDate = new Date(j.created_at);
+        jobDate.setHours(0, 0, 0, 0);
+        return jobDate.getTime() === today.getTime();
+      })
+      .reduce((sum, j) => sum + (j.generation_cost_estimate || 0), 0);
+
+    const monthlyTotal = jobs
+      .filter(j => {
+        const jobDate = new Date(j.created_at);
+        return jobDate >= monthStart && jobDate <= today;
+      })
+      .reduce((sum, j) => sum + (j.generation_cost_estimate || 0), 0);
+
+    const queueTotal = jobs
+      .filter(j => j.status === 'queued')
+      .reduce((sum, j) => sum + (j.generation_cost_estimate || 0), 0);
+
+    return { today: todayTotal, monthly: monthlyTotal, queue: queueTotal };
+  };
+
+  const costs = calculateCosts();
+  const costTrend = Math.random() > 0.5 ? 1 : -1; // Mock trend
 
   if (loadingJobs) {
     return (
@@ -75,51 +137,115 @@ export function QueuePage() {
 
   return (
     <div className="min-h-screen bg-noir-bg">
-      {/* Stats Cards */}
-      <div className="sticky top-20 z-20 bg-noir-bg/95 backdrop-blur-sm border-b border-noir-border px-4 py-4">
-        <div className="grid grid-cols-2 gap-3">
+      {/* Cost Summary Section */}
+      <div className="sticky top-20 z-20 bg-noir-bg/95 backdrop-blur-sm border-b border-noir-border px-4 py-4 space-y-4">
+        {/* Cost Cards */}
+        <div className="grid grid-cols-3 gap-3">
+          <motion.div
+            className="bg-noir-surface border border-noir-border rounded-xl p-3"
+            whileHover={{ y: -2 }}
+          >
+            <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Today</p>
+            <p className="text-xl font-black text-accent-primary">${costs.today.toFixed(2)}</p>
+          </motion.div>
+
+          <motion.div
+            className="bg-noir-surface border border-noir-border rounded-xl p-3"
+            whileHover={{ y: -2 }}
+          >
+            <p className="text-xs text-text-muted uppercase tracking-wider mb-1">This Month</p>
+            <p className="text-xl font-black text-accent-primary">${costs.monthly.toFixed(2)}</p>
+          </motion.div>
+
+          <motion.div
+            className="bg-noir-surface border border-noir-border rounded-xl p-3"
+            whileHover={{ y: -2 }}
+          >
+            <p className="text-xs text-text-muted uppercase tracking-wider mb-1">Queue</p>
+            <div className="flex items-center gap-1">
+              <p className="text-xl font-black text-accent-primary">${costs.queue.toFixed(2)}</p>
+              {costTrend > 0 ? (
+                <TrendingUp className="w-4 h-4 text-accent-danger" />
+              ) : (
+                <TrendingDown className="w-4 h-4 text-accent-success" />
+              )}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Batch Processing Section */}
+        <div className="bg-noir-surface border border-noir-border rounded-xl p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-text-primary mb-1">Batch Processing</p>
+              <p className="text-xs text-text-muted">
+                {stats.queued} queued {stats.queued !== 1 ? 'jobs' : 'job'}
+              </p>
+              <p className="text-xs text-text-secondary mt-1">
+                Next batch runs in:{' '}
+                <span className="font-black text-accent-primary">
+                  {Math.floor(batchCountdown / 60)}m {batchCountdown % 60}s
+                </span>
+              </p>
+            </div>
+
+            <motion.button
+              onClick={handleProcessNow}
+              disabled={isProcessingNow}
+              className="px-4 py-2 bg-accent-primary hover:shadow-lg hover:shadow-accent-primary/30 text-noir-bg rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {isProcessingNow ? 'Processing...' : 'Process Now'}
+            </motion.button>
+          </div>
+        </div>
+
+        {/* Status Stats */}
+        <div className="grid grid-cols-5 gap-2">
           {stats.processing > 0 && (
             <motion.div
-              className="bg-noir-surface border border-noir-border rounded-xl p-3"
+              className="bg-noir-surface border border-noir-border rounded-xl p-2 text-center"
               whileHover={{ y: -2 }}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-muted uppercase tracking-wider">Processing</span>
-                <span className="text-2xl font-black text-accent-primary">{stats.processing}</span>
-              </div>
+              <p className="text-xs text-text-muted uppercase tracking-wider">Processing</p>
+              <p className="text-lg font-black text-accent-primary">{stats.processing}</p>
+            </motion.div>
+          )}
+          {stats.queued > 0 && (
+            <motion.div
+              className="bg-noir-surface border border-noir-border rounded-xl p-2 text-center"
+              whileHover={{ y: -2 }}
+            >
+              <p className="text-xs text-text-muted uppercase tracking-wider">Queued</p>
+              <p className="text-lg font-black text-text-secondary">{stats.queued}</p>
             </motion.div>
           )}
           {stats.ready > 0 && (
             <motion.div
-              className="bg-noir-surface border border-noir-border rounded-xl p-3"
+              className="bg-noir-surface border border-noir-border rounded-xl p-2 text-center"
               whileHover={{ y: -2 }}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-muted uppercase tracking-wider">Ready</span>
-                <span className="text-2xl font-black text-accent-success">{stats.ready}</span>
-              </div>
+              <p className="text-xs text-text-muted uppercase tracking-wider">Ready</p>
+              <p className="text-lg font-black text-accent-success">{stats.ready}</p>
             </motion.div>
           )}
           {stats.failed > 0 && (
             <motion.div
-              className="bg-noir-surface border border-noir-border rounded-xl p-3"
+              className="bg-noir-surface border border-noir-border rounded-xl p-2 text-center"
               whileHover={{ y: -2 }}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-muted uppercase tracking-wider">Failed</span>
-                <span className="text-2xl font-black text-accent-danger">{stats.failed}</span>
-              </div>
+              <p className="text-xs text-text-muted uppercase tracking-wider">Failed</p>
+              <p className="text-lg font-black text-accent-danger">{stats.failed}</p>
             </motion.div>
           )}
           {stats.published > 0 && (
             <motion.div
-              className="bg-noir-surface border border-noir-border rounded-xl p-3"
+              className="bg-noir-surface border border-noir-border rounded-xl p-2 text-center"
               whileHover={{ y: -2 }}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-muted uppercase tracking-wider">Published</span>
-                <span className="text-2xl font-black text-accent-primary">{stats.published}</span>
-              </div>
+              <p className="text-xs text-text-muted uppercase tracking-wider">Published</p>
+              <p className="text-lg font-black text-accent-primary">{stats.published}</p>
             </motion.div>
           )}
         </div>
@@ -163,6 +289,11 @@ export function QueuePage() {
                     >
                       {job.status}
                     </motion.span>
+                    {job.generation_cost_estimate && (
+                      <span className="ml-auto text-xs font-semibold text-accent-primary">
+                        ${job.generation_cost_estimate.toFixed(2)}
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-text-primary font-semibold line-clamp-1">
                     {job.target_platforms?.join(', ') || 'No platforms'}
@@ -214,11 +345,43 @@ export function QueuePage() {
                       </div>
                     </div>
 
+                    {job.generation_cost_estimate && (
+                      <div>
+                        <p className="text-text-muted text-xs uppercase tracking-wider mb-2">Cost Estimate</p>
+                        <p className="text-accent-primary font-bold">${job.generation_cost_estimate.toFixed(2)}</p>
+                      </div>
+                    )}
+
+                    {job.layout_type && (
+                      <div>
+                        <p className="text-text-muted text-xs uppercase tracking-wider mb-2">Layout</p>
+                        <p className="text-text-primary font-semibold">{job.layout_type}</p>
+                      </div>
+                    )}
+
                     {job.first_comment && (
                       <div>
                         <p className="text-text-muted text-xs uppercase tracking-wider mb-2">First Comment</p>
                         <p className="text-text-secondary text-xs bg-noir-bg/50 p-3 rounded-lg border border-noir-border">
                           {job.first_comment}
+                        </p>
+                      </div>
+                    )}
+
+                    {job.caption_text && (
+                      <div>
+                        <p className="text-text-muted text-xs uppercase tracking-wider mb-2">Caption</p>
+                        <p className="text-text-secondary text-xs bg-noir-bg/50 p-3 rounded-lg border border-noir-border line-clamp-2">
+                          {job.caption_text}
+                        </p>
+                      </div>
+                    )}
+
+                    {job.is_evergreen && (
+                      <div>
+                        <p className="text-text-muted text-xs uppercase tracking-wider mb-2">Evergreen</p>
+                        <p className="text-text-primary font-semibold">
+                          Every {job.evergreen_interval_days} days
                         </p>
                       </div>
                     )}

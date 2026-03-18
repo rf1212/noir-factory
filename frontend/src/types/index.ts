@@ -42,6 +42,14 @@ export interface ContentJob {
   created_at: string;
   updated_at: string;
   error_message?: string;
+  generation_cost_estimate?: number;
+  caption_text?: string;
+  hashtags_text?: string;
+  hook_text?: string;
+  on_screen_text?: string;
+  layout_type?: string;
+  is_evergreen?: boolean;
+  evergreen_interval_days?: number;
 }
 
 export interface EngagementTemplate {

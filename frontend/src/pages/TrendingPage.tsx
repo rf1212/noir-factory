@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Flame, AlertCircle, Loader, Bookmark } from 'lucide-react';
+import { Flame, AlertCircle, Loader, Zap, Share2 } from 'lucide-react';
 import * as api from '../lib/api';
 import type { TrendingItem } from '../types';
 
-type Platform = 'all' | 'reddit' | 'twitter' | 'tiktok' | 'instagram';
+type Platform = 'all' | 'news' | 'reddit' | 'twitter' | 'tiktok' | 'instagram';
 
 const PLATFORM_COLORS = {
   reddit: { bg: 'bg-red-500/10', icon: 'text-red-500', border: 'border-red-500/30' },
   twitter: { bg: 'bg-sky-500/10', icon: 'text-sky-500', border: 'border-sky-500/30' },
   tiktok: { bg: 'bg-black/10', icon: 'text-white/80', border: 'border-white/30' },
   instagram: { bg: 'bg-pink-500/10', icon: 'text-pink-500', border: 'border-pink-500/30' },
+  news: { bg: 'bg-purple-500/10', icon: 'text-purple-500', border: 'border-purple-500/30' },
 };
 
 const PLATFORM_LABELS = {
@@ -18,6 +19,7 @@ const PLATFORM_LABELS = {
   twitter: 'X/Twitter',
   tiktok: 'TikTok',
   instagram: 'Instagram',
+  news: 'News',
 };
 
 export function TrendingPage() {
@@ -26,6 +28,7 @@ export function TrendingPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>('all');
   const [capturingId, setCapturingId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchTrending();
@@ -45,13 +48,16 @@ export function TrendingPage() {
     }
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchTrending();
+    setRefreshing(false);
+  };
+
   const handleCapture = async (item: TrendingItem) => {
     setCapturingId(item.id);
     try {
-      // For now, just show a success message
-      // Later, this will create a content item from the trending topic
       console.log('Capturing trend:', item);
-      // Simulate a small delay
       await new Promise(resolve => setTimeout(resolve, 500));
     } catch (err) {
       console.error('Failed to capture trend:', err);
@@ -71,16 +77,40 @@ export function TrendingPage() {
     return `${Math.floor(hours / 24)}d ago`;
   };
 
+  // Skeleton loading card
+  const SkeletonCard = () => (
+    <motion.div
+      className="bg-noir-surface rounded-2xl overflow-hidden border border-noir-border"
+      animate={{ opacity: [0.6, 1, 0.6] }}
+      transition={{ duration: 2, repeat: Infinity }}
+    >
+      <div className="aspect-video bg-noir-bg" />
+      <div className="p-4 space-y-3">
+        <div className="h-4 bg-noir-bg rounded w-3/4" />
+        <div className="h-3 bg-noir-bg rounded w-1/2" />
+        <div className="flex gap-2">
+          <div className="h-10 bg-noir-bg rounded flex-1" />
+          <div className="h-10 bg-noir-bg rounded flex-1" />
+        </div>
+      </div>
+    </motion.div>
+  );
+
   if (loading && trendingItems.length === 0) {
     return (
-      <div className="min-h-screen bg-noir-bg flex items-center justify-center px-4">
-        <div className="text-center">
-          <motion.div
-            className="w-12 h-12 rounded-full border-4 border-noir-border border-t-accent-primary mx-auto mb-4"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          />
-          <p className="text-text-secondary">Loading trending topics...</p>
+      <div className="min-h-screen bg-noir-bg pb-24">
+        <div className="sticky top-20 z-20 bg-noir-bg/95 backdrop-blur-sm border-b border-noir-border px-4 py-4">
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Flame className="w-5 h-5 text-accent-primary" />
+              <h1 className="text-lg font-black text-text-primary">Explore</h1>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </div>
       </div>
     );
@@ -112,36 +142,44 @@ export function TrendingPage() {
       {/* Header */}
       <div className="sticky top-20 z-20 bg-noir-bg/95 backdrop-blur-sm border-b border-noir-border px-4 py-4">
         <div className="mb-4">
-          <div className="flex items-center gap-2 mb-4">
-            <Flame className="w-5 h-5 text-accent-primary" />
-            <h1 className="text-lg font-black text-text-primary">Trending Topics</h1>
-          </div>
-          <p className="text-xs text-text-muted">
-            Real-time trending content from social media platforms. Click capture to add to your queue.
-          </p>
-        </div>
-
-        {/* Platform Filter */}
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {(['all', 'reddit', 'twitter', 'tiktok', 'instagram'] as Platform[]).map((platform) => (
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Flame className="w-5 h-5 text-accent-primary" />
+              <h1 className="text-lg font-black text-text-primary">Explore</h1>
+            </div>
             <motion.button
-              key={platform}
-              onClick={() => setSelectedPlatform(platform)}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all duration-200 min-h-[44px] ${
-                selectedPlatform === platform
-                  ? 'bg-accent-primary text-noir-bg shadow-lg shadow-accent-primary/30'
-                  : 'bg-noir-surface border border-noir-border text-text-secondary hover:border-accent-primary/50'
-              }`}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="p-2 hover:bg-noir-surface rounded-lg transition-colors disabled:opacity-50 min-h-[44px] min-w-[44px]"
+              whileHover={{ rotate: refreshing ? 0 : 10 }}
+              whileTap={{ scale: 0.95 }}
             >
-              {platform === 'all' ? 'All' : PLATFORM_LABELS[platform as keyof typeof PLATFORM_LABELS]}
+              <Loader className={`w-5 h-5 text-accent-primary ${refreshing ? 'animate-spin' : ''}`} />
             </motion.button>
-          ))}
+          </div>
+
+          {/* Platform Filter */}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            {(['all', 'news', 'reddit', 'twitter', 'tiktok', 'instagram'] as Platform[]).map((platform) => (
+              <motion.button
+                key={platform}
+                onClick={() => setSelectedPlatform(platform)}
+                className={`px-4 py-2 rounded-lg font-semibold text-sm whitespace-nowrap transition-all duration-200 min-h-[44px] ${
+                  selectedPlatform === platform
+                    ? 'bg-accent-primary text-noir-bg shadow-lg shadow-accent-primary/30'
+                    : 'bg-noir-surface border border-noir-border text-text-secondary hover:border-accent-primary/50'
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {platform === 'all' ? 'All' : PLATFORM_LABELS[platform as keyof typeof PLATFORM_LABELS]}
+              </motion.button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content Grid */}
       <div className="p-4 pb-24">
         {trendingItems.length === 0 ? (
           <div className="text-center space-y-4 py-12">
@@ -149,18 +187,14 @@ export function TrendingPage() {
               <Flame className="w-8 h-8 text-text-muted" />
             </div>
             <p className="text-text-secondary">No trending topics found</p>
-            <p className="text-text-muted text-sm">Connect your social accounts in Settings to see trending topics</p>
+            <p className="text-text-muted text-sm">Try selecting a different platform or check back later</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {trendingItems.map((item, index) => {
               const platformColor =
                 PLATFORM_COLORS[item.platform as keyof typeof PLATFORM_COLORS] ||
                 PLATFORM_COLORS.reddit;
-
-              // Calculate trend volume percentage (0-100)
-              const maxVolume = Math.max(...trendingItems.map(i => i.volume));
-              const volumePercent = (item.volume / maxVolume) * 100;
 
               return (
                 <motion.div
@@ -168,84 +202,72 @@ export function TrendingPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className={`bg-noir-surface border rounded-2xl overflow-hidden transition-all duration-200 ${platformColor.border}`}
+                  className="bg-noir-surface border border-noir-border rounded-2xl overflow-hidden hover:border-accent-primary/50 transition-all duration-200 flex flex-col h-full"
                 >
-                  {/* Main Content */}
-                  <div className="p-4 space-y-3">
-                    {/* Header */}
-                    <div className="flex items-start gap-3">
-                      <div className={`${platformColor.bg} rounded-lg p-2.5 flex-shrink-0 border ${platformColor.border}`}>
-                        <div className={`w-5 h-5 flex items-center justify-center text-sm font-black ${platformColor.icon}`}>
-                          {item.platform === 'reddit' && 'R'}
-                          {item.platform === 'twitter' && 'X'}
-                          {item.platform === 'tiktok' && '♪'}
-                          {item.platform === 'instagram' && '📷'}
-                        </div>
-                      </div>
+                  {/* Image */}
+                  <div className={`aspect-video ${platformColor.bg} flex items-center justify-center border-b ${platformColor.border}`}>
+                    <div className={`text-4xl ${platformColor.icon}`}>
+                      {item.platform === 'reddit' && 'R'}
+                      {item.platform === 'twitter' && 'X'}
+                      {item.platform === 'tiktok' && '♪'}
+                      {item.platform === 'instagram' && '📷'}
+                      {item.platform === 'news' && '📰'}
+                    </div>
+                  </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <p className="text-sm font-black text-text-primary">
-                              {item.hashtag ? item.hashtag : item.topic}
-                            </p>
-                            <p className="text-xs text-text-muted mt-0.5">
-                              {PLATFORM_LABELS[item.platform as keyof typeof PLATFORM_LABELS]} • {timeAgoFormatter(item.timestamp)}
-                            </p>
-                          </div>
+                  {/* Content */}
+                  <div className="p-4 flex-1 flex flex-col">
+                    {/* Source and Date */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`text-xs font-black px-2 py-1 rounded ${platformColor.bg} border ${platformColor.border}`}>
+                          {PLATFORM_LABELS[item.platform as keyof typeof PLATFORM_LABELS]}
                         </div>
+                        <span className="text-xs text-text-muted">{timeAgoFormatter(item.timestamp)}</span>
                       </div>
+                    </div>
 
-                      {/* Capture Button */}
+                    {/* Headline */}
+                    <h3 className="text-sm font-black text-text-primary mb-2 line-clamp-2">
+                      {item.hashtag ? `#${item.hashtag}` : item.topic}
+                    </h3>
+
+                    {/* Excerpt */}
+                    <p className="text-xs text-text-secondary mb-4 flex-1 line-clamp-2">
+                      Trending with {item.volume.toLocaleString()} posts and {item.score.toLocaleString()} engagement score
+                    </p>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 pt-4 border-t border-noir-border">
                       <motion.button
                         onClick={() => handleCapture(item)}
                         disabled={capturingId === item.id}
-                        className="flex-shrink-0 px-3 py-2 bg-accent-primary hover:shadow-lg hover:shadow-accent-primary/30 text-noir-bg rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] flex items-center gap-2 text-sm"
+                        className="flex-1 px-3 py-2.5 bg-noir-bg hover:bg-noir-border text-text-primary rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-1.5 text-xs min-h-[40px]"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
                         {capturingId === item.id ? (
                           <>
-                            <Loader className="w-4 h-4 animate-spin" />
+                            <Loader className="w-3 h-3 animate-spin" />
+                            <span>Capture</span>
                           </>
                         ) : (
                           <>
-                            <Bookmark className="w-4 h-4" />
-                            Capture
+                            <Zap className="w-3 h-3" />
+                            <span>Capture</span>
                           </>
                         )}
                       </motion.button>
+                      <motion.button
+                        onClick={() => console.log('Quick post:', item)}
+                        className="flex-1 px-3 py-2.5 bg-accent-primary/10 hover:bg-accent-primary/20 text-accent-primary rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 text-xs min-h-[40px]"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Share2 className="w-3 h-3" />
+                        <span>Quick Post</span>
+                      </motion.button>
                     </div>
-
-                    {/* Trend Metrics */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-text-muted uppercase tracking-wider">Trend Score</span>
-                        <span className="text-sm font-bold text-accent-primary">{item.score.toLocaleString()}</span>
-                      </div>
-                      <div className="w-full bg-noir-bg rounded-full h-2 overflow-hidden">
-                        <motion.div
-                          className="h-full bg-gradient-to-r from-accent-primary to-accent-primary/60 rounded-full"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${volumePercent}%` }}
-                          transition={{ duration: 0.8, ease: 'easeOut' }}
-                        />
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-text-muted">Volume</span>
-                        <span className="text-xs font-semibold text-text-secondary">{item.volume.toLocaleString()} posts</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Platform Badge */}
-                  <div className={`px-4 py-2 ${platformColor.bg} border-t ${platformColor.border} flex items-center justify-between`}>
-                    <span className="text-xs text-text-muted uppercase tracking-wider font-semibold">
-                      {PLATFORM_LABELS[item.platform as keyof typeof PLATFORM_LABELS]}
-                    </span>
-                    <span className={`text-xs font-black ${platformColor.icon}`}>
-                      {((item.volume / maxVolume) * 100).toFixed(0)}% engagement
-                    </span>
                   </div>
                 </motion.div>
               );

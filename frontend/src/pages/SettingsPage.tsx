@@ -10,7 +10,7 @@ interface Feed {
   id: string;
   name: string;
   url: string;
-  type: 'reddit' | 'twitter' | 'rss';
+  type: 'rss' | 'reddit' | 'twitter' | 'youtube' | 'instagram' | 'tiktok' | 'linkedin' | 'news' | 'competitor' | 'generic';
 }
 
 interface Prompts {
@@ -188,7 +188,14 @@ export function SettingsPage() {
                 >
                   <option value="rss">RSS Feed</option>
                   <option value="reddit">Reddit</option>
-                  <option value="twitter">Twitter</option>
+                  <option value="twitter">Twitter/X</option>
+                  <option value="youtube">YouTube</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="tiktok">TikTok</option>
+                  <option value="linkedin">LinkedIn</option>
+                  <option value="news">News</option>
+                  <option value="competitor">Competitor Account</option>
+                  <option value="generic">Generic</option>
                 </select>
                 <div className="flex gap-2">
                   <motion.button

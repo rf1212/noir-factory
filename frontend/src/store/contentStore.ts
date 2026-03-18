@@ -42,7 +42,8 @@ export const useContentStore = create<ContentState>((set, get) => ({
   fetchContentItems: async (feedId?: string) => {
     set({ loadingItems: true });
     try {
-      const items = await api.getContentItems(feedId);
+      const result = await api.getContentItems(feedId);
+      const items = result.items || result.data || [];
       set({ contentItems: items, currentItemIndex: 0, loadingItems: false });
     } catch (error) {
       set({
@@ -91,7 +92,8 @@ export const useContentStore = create<ContentState>((set, get) => ({
   fetchContentJobs: async () => {
     set({ loadingJobs: true });
     try {
-      const jobs = await api.getContentJobs();
+      const result = await api.getContentJobs();
+      const jobs = result.jobs || result.data || [];
       set({ jobs, loadingJobs: false });
     } catch (error) {
       set({
@@ -118,7 +120,8 @@ export const useContentStore = create<ContentState>((set, get) => ({
   fetchFeeds: async () => {
     set({ loadingFeeds: true });
     try {
-      const feeds = await api.getFeeds();
+      const result = await api.getFeeds();
+      const feeds = result.feeds || result.data || [];
       set({ feeds, loadingFeeds: false });
     } catch (error) {
       set({
@@ -130,7 +133,8 @@ export const useContentStore = create<ContentState>((set, get) => ({
 
   addFeed: async (feedData) => {
     try {
-      const feed = await api.createFeed(feedData as any);
+      const result = await api.createFeed(feedData as any);
+      const feed = result.feed || result.data;
       set((state) => ({ feeds: [...state.feeds, feed] }));
     } catch (error) {
       throw error;

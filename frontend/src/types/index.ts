@@ -27,7 +27,7 @@ export interface Feed {
   id: string;
   name: string;
   url: string;
-  type: 'reddit' | 'twitter' | 'rss';
+  type: 'rss' | 'reddit' | 'twitter' | 'youtube' | 'instagram' | 'tiktok' | 'linkedin' | 'news' | 'competitor' | 'generic';
   created_at: string;
 }
 

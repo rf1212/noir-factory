@@ -44,9 +44,10 @@ export function SettingsPage() {
   const loadPrompts = async () => {
     if (!currentCompany) return;
     try {
-      const data = await api.getCompanyPrompts(currentCompany.id);
-      setPrompts(data || {});
-      setPromptValues(data || {});
+      const result = await api.getCompanyPrompts(currentCompany.id);
+      const p = result.prompts || result.data || result || {};
+      setPrompts(p);
+      setPromptValues(p);
     } catch (error) {
       console.error('Failed to load prompts:', error);
     }

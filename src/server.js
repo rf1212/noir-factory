@@ -269,6 +269,15 @@ async function initializeApp() {
       logger.warn('⚠️ RSS feed fetcher not started:', err.message);
     }
 
+    // Start Viral Content Finder (non-blocking)
+    try {
+      const { startViralFinder } = require('./jobs/viralFinder');
+      startViralFinder();
+      logger.info('✅ Viral content finder started');
+    } catch (err) {
+      logger.warn('⚠️ Viral content finder not started:', err.message);
+    }
+
     logger.info('✅ Noir Factory initialization complete');
 
   } catch (error) {

@@ -64,11 +64,14 @@ export function QuickPostBottomSheet({
   const [error, setError] = useState('');
   const [generatingContent, setGeneratingContent] = useState(false);
   const [generatingComment, setGeneratingComment] = useState(false);
+  const [hashtags, setHashtags] = useState('');
+  const [generatingHashtags, setGeneratingHashtags] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setContent('');
       setFirstComment('');
+      setHashtags('');
       setSelectedLayout('hook-reddit');
       setSelectedPlatforms(['instagram']);
       setSelectedAvatar(null);
@@ -109,6 +112,7 @@ export function QuickPostBottomSheet({
       const result = await api.generateText(selectedPromptStyle, content);
       if (result.success && result.text) {
         setContent(result.text);
+        setError('');
       } else {
         setError('Failed to generate content');
       }
@@ -129,6 +133,7 @@ export function QuickPostBottomSheet({
       const result = await api.generateText('first_comment', content);
       if (result.success && result.text) {
         setFirstComment(result.text);
+        setError('');
       } else {
         setError('Failed to generate comment');
       }
@@ -136,6 +141,27 @@ export function QuickPostBottomSheet({
       setError(err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setGeneratingComment(false);
+    }
+  };
+
+  const handleGenerateHashtags = async () => {
+    if (!content.trim()) {
+      setError('Please enter some content first');
+      return;
+    }
+    setGeneratingHashtags(true);
+    try {
+      const result = await api.generateText('hashtags', content);
+      if (result.success && result.text) {
+        setHashtags(result.text);
+        setError('');
+      } else {
+        setError('Failed to generate hashtags');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generation failed');
+    } finally {
+      setGeneratingHashtags(false);
     }
   };
 
@@ -161,6 +187,7 @@ export function QuickPostBottomSheet({
         job_type: 'video_with_avatar',
         target_platforms: selectedPlatforms,
         caption_text: content,
+        hashtags: hashtags || undefined,
         layout_type: selectedLayout,
         first_comment: firstComment || undefined,
         avatar_id: selectedAvatar || undefined,
@@ -290,6 +317,32 @@ export function QuickPostBottomSheet({
                   onChange={(e) => setFirstComment(e.target.value)}
                   placeholder="Write first comment here (optional)..."
                   className="w-full px-4 py-3 bg-noir-bg border border-noir-border rounded-xl text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 min-h-[100px] resize-none"
+                />
+              </div>
+
+              {/* Hashtags field */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-semibold text-text-primary">
+                    Hashtags (Optional)
+                  </label>
+                  <motion.button
+                    onClick={handleGenerateHashtags}
+                    disabled={generatingHashtags}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-accent-primary/10 hover:bg-accent-primary/20 text-accent-primary rounded-lg text-xs font-semibold transition-all disabled:opacity-50"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {generatingHashtags && <Loader className="w-3 h-3 animate-spin" />}
+                    <Sparkles className="w-3 h-3" />
+                    Generate
+                  </motion.button>
+                </div>
+                <textarea
+                  value={hashtags}
+                  onChange={(e) => setHashtags(e.target.value)}
+                  placeholder="Add hashtags here (optional)..."
+                  className="w-full px-4 py-3 bg-noir-bg border border-noir-border rounded-xl text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20 min-h-[80px] resize-none"
                 />
               </div>
 

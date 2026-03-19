@@ -709,15 +709,48 @@ async function fetchRedditResults(query) {
 router.get('/', async (req, res) => {
   try {
     const { q } = req.query;
+    const companyId = req.headers['x-company-id'];
 
-    // If no query, prompt user to search
+    // If no query, show recently found viral content
     if (!q || q.trim() === '') {
+      let viralContent = [];
+
+      // Try to fetch recently found viral content from content_items
+      if (companyId) {
+        try {
+          const supabase = getSupabaseAdmin();
+          const { data, error } = await supabase
+            .from('content_items')
+            .select('*')
+            .eq('company_id', companyId)
+            .like('source_guid', 'viral-%')
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+          if (!error && data) {
+            viralContent = data.map(item => ({
+              id: item.id,
+              title: item.source_title,
+              excerpt: item.source_content,
+              url: item.source_url,
+              source: item.source_author,
+              platform: 'viral',
+              image_url: item.source_image_url || `https://picsum.photos/seed/viral-${item.id}/600/400`,
+              score: 0,
+              timestamp: item.created_at
+            }));
+          }
+        } catch (err) {
+          logger.warn('Failed to fetch viral content:', err.message);
+        }
+      }
+
       return res.json({
         success: true,
-        data: [],
+        data: viralContent,
         query: null,
-        message: 'Enter a search query to discover trending topics',
-        count: 0
+        message: viralContent.length > 0 ? 'Recently found viral content' : 'Enter a search query to discover trending topics',
+        count: viralContent.length
       });
     }
 

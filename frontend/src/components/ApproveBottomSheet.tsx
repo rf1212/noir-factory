@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, Sparkles } from 'lucide-react';
+import { X, Zap, Sparkles, Loader } from 'lucide-react';
 import * as api from '../lib/api';
 import type { ContentItem } from '../types';
 
@@ -61,6 +61,10 @@ export function ApproveBottomSheet({
   const [hookText, setHookText] = useState('');
   const [onScreenText, setOnScreenText] = useState('');
   const [firstComment, setFirstComment] = useState('');
+  const [generatingCaption, setGeneratingCaption] = useState(false);
+  const [generatingHashtags, setGeneratingHashtags] = useState(false);
+  const [generatingHook, setGeneratingHook] = useState(false);
+  const [generatingComment, setGeneratingComment] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -105,6 +109,62 @@ export function ApproveBottomSheet({
   };
 
   const estimatedCost = calculateEstimatedCost();
+
+  const handleGenerateCaption = async () => {
+    setGeneratingCaption(true);
+    try {
+      const result = await api.generateText('caption', contentItem.source_content || '');
+      if (result.success && result.text) {
+        setCaption(result.text);
+      }
+    } catch (error) {
+      console.error('Failed to generate caption:', error);
+    } finally {
+      setGeneratingCaption(false);
+    }
+  };
+
+  const handleGenerateHashtags = async () => {
+    setGeneratingHashtags(true);
+    try {
+      const result = await api.generateText('hashtags', contentItem.source_content || '');
+      if (result.success && result.text) {
+        setHashtags(result.text);
+      }
+    } catch (error) {
+      console.error('Failed to generate hashtags:', error);
+    } finally {
+      setGeneratingHashtags(false);
+    }
+  };
+
+  const handleGenerateHook = async () => {
+    setGeneratingHook(true);
+    try {
+      const result = await api.generateText('hook', contentItem.source_content || '');
+      if (result.success && result.text) {
+        setHookText(result.text);
+      }
+    } catch (error) {
+      console.error('Failed to generate hook:', error);
+    } finally {
+      setGeneratingHook(false);
+    }
+  };
+
+  const handleGenerateComment = async () => {
+    setGeneratingComment(true);
+    try {
+      const result = await api.generateText('first_comment', contentItem.source_content || '');
+      if (result.success && result.text) {
+        setFirstComment(result.text);
+      }
+    } catch (error) {
+      console.error('Failed to generate comment:', error);
+    } finally {
+      setGeneratingComment(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (selectedPlatforms.length === 0) {
@@ -271,9 +331,19 @@ export function ApproveBottomSheet({
                       placeholder="AI will generate caption based on content..."
                       className="flex-1 bg-noir-surface border border-noir-border rounded-xl p-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary/50 resize-none min-h-[80px]"
                     />
-                    <button className="p-2 rounded-lg hover:bg-noir-surface text-accent-primary transition-colors flex-shrink-0">
-                      <Sparkles className="w-4 h-4" />
-                    </button>
+                    <motion.button
+                      onClick={handleGenerateCaption}
+                      disabled={generatingCaption}
+                      className="p-2 rounded-lg hover:bg-noir-surface text-accent-primary transition-colors flex-shrink-0 disabled:opacity-50"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {generatingCaption ? (
+                        <Loader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                    </motion.button>
                   </div>
                 </div>
 
@@ -288,9 +358,19 @@ export function ApproveBottomSheet({
                       placeholder="AI will generate hashtags..."
                       className="flex-1 bg-noir-surface border border-noir-border rounded-xl p-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary/50 resize-none min-h-[60px]"
                     />
-                    <button className="p-2 rounded-lg hover:bg-noir-surface text-accent-primary transition-colors flex-shrink-0">
-                      <Sparkles className="w-4 h-4" />
-                    </button>
+                    <motion.button
+                      onClick={handleGenerateHashtags}
+                      disabled={generatingHashtags}
+                      className="p-2 rounded-lg hover:bg-noir-surface text-accent-primary transition-colors flex-shrink-0 disabled:opacity-50"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {generatingHashtags ? (
+                        <Loader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                    </motion.button>
                   </div>
                 </div>
 
@@ -306,9 +386,19 @@ export function ApproveBottomSheet({
                       placeholder="AI will generate hook..."
                       className="flex-1 bg-noir-surface border border-noir-border rounded-xl px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary/50"
                     />
-                    <button className="p-2 rounded-lg hover:bg-noir-surface text-accent-primary transition-colors flex-shrink-0">
-                      <Sparkles className="w-4 h-4" />
-                    </button>
+                    <motion.button
+                      onClick={handleGenerateHook}
+                      disabled={generatingHook}
+                      className="p-2 rounded-lg hover:bg-noir-surface text-accent-primary transition-colors flex-shrink-0 disabled:opacity-50"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {generatingHook ? (
+                        <Loader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                    </motion.button>
                   </div>
                 </div>
 
@@ -328,12 +418,27 @@ export function ApproveBottomSheet({
                   <label className="text-xs font-semibold text-text-secondary mb-1 block">
                     First Comment
                   </label>
-                  <textarea
-                    value={firstComment}
-                    onChange={(e) => setFirstComment(e.target.value)}
-                    placeholder="Auto-posted first comment..."
-                    className="w-full bg-noir-surface border border-noir-border rounded-xl p-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary/50 resize-none min-h-[60px]"
-                  />
+                  <div className="flex gap-2">
+                    <textarea
+                      value={firstComment}
+                      onChange={(e) => setFirstComment(e.target.value)}
+                      placeholder="Auto-posted first comment..."
+                      className="flex-1 bg-noir-surface border border-noir-border rounded-xl p-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent-primary/50 resize-none min-h-[60px]"
+                    />
+                    <motion.button
+                      onClick={handleGenerateComment}
+                      disabled={generatingComment}
+                      className="p-2 rounded-lg hover:bg-noir-surface text-accent-primary transition-colors flex-shrink-0 disabled:opacity-50"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      {generatingComment ? (
+                        <Loader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                    </motion.button>
+                  </div>
                 </div>
               </div>
 

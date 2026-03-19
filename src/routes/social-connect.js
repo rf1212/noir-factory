@@ -187,14 +187,8 @@ router.get('/:platform/callback', async (req, res) => {
       logger.error('Failed to store integration:', dbError.message);
     }
 
-    // Return success and redirect to bot page
-    res.json({
-      success: true,
-      message: `Successfully connected ${platform}!`,
-      platform,
-      account_name: tokenData.account_name,
-      redirect: '/bot', // Frontend will redirect
-    });
+    // Redirect to bot page
+    res.redirect('/bot?connected=' + platform);
   } catch (error) {
     logger.error('Error in /connect/:platform/callback:', error.message);
     res.status(500).json({

@@ -72,13 +72,30 @@ export function BotPage() {
         api.getEngagementStatsDetailed({ period }),
       ]);
 
-      setBotEnabled(status.enabled || false);
-      setHashtags(hashtags.hashtags || []);
-      setTemplates(templates || []);
-      setActivities(activities || []);
-      setStats(detailedStats || null);
+      // Extract data from API responses (handle both wrapped and unwrapped formats)
+      setBotEnabled(status?.enabled || status?.data?.enabled || false);
+      setHashtags(hashtags?.hashtags || hashtags?.data?.hashtags || []);
+      setTemplates(templates?.data || templates || []);
+      setActivities(activities?.data || activities || []);
+
+      // Handle stats response - it returns { success, period, totals, by_platform, ... }
+      if (detailedStats && detailedStats.totals) {
+        setStats({
+          period: detailedStats.period || period,
+          totals: detailedStats.totals,
+          byPlatform: detailedStats.by_platform || {}
+        });
+      } else {
+        setStats(null);
+      }
     } catch (error) {
       console.error('Failed to load bot data:', error);
+      // Set safe defaults on error
+      setBotEnabled(false);
+      setHashtags([]);
+      setTemplates([]);
+      setActivities([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }

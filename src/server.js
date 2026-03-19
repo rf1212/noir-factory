@@ -260,6 +260,15 @@ async function initializeApp() {
       logger.warn('Continuing without RSS monitor...');
     }
 
+    // Start RSS Feed Fetcher (non-blocking)
+    try {
+      const { startFeedFetcher } = require('./jobs/feedFetcher');
+      startFeedFetcher();
+      logger.info('✅ RSS feed fetcher started');
+    } catch (err) {
+      logger.warn('⚠️ RSS feed fetcher not started:', err.message);
+    }
+
     logger.info('✅ Noir Factory initialization complete');
 
   } catch (error) {

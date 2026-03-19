@@ -585,38 +585,73 @@ const KEYWORD_CONTENT_MAP = {
 };
 
 /**
- * Generate mock results for a keyword search
+ * Generate mock results for a keyword search with fuzzy matching
+ * Searches across titles, excerpts, keywords, and hashtags
  */
 function generateSearchResults(query) {
-  const keywords = query.toLowerCase().split(/\s+/);
-  const results = [];
-  const used = new Set();
+  const searchTerms = query.toLowerCase().split(/\s+/);
+  const scored = [];
 
-  // Search for matching content
+  // Search through ALL content in ALL keyword categories
   for (const [keyword, templates] of Object.entries(KEYWORD_CONTENT_MAP)) {
-    const keywordParts = keyword.split(/\s+/);
-    const matchesAny = keywordParts.some(part =>
-      keywords.some(k => k.includes(part) || part.includes(k))
-    );
+    templates.forEach((template, idx) => {
+      let score = 0;
+      const titleLower = template.title.toLowerCase();
+      const excerptLower = template.excerpt.toLowerCase();
+      const keywordLower = keyword.toLowerCase();
+      const hashtagLower = (template.hashtag || '').toLowerCase();
 
-    if (matchesAny) {
-      templates.forEach((template, idx) => {
-        if (used.size < 12) {
-          const id = `trend-${used.size + 1}-${Date.now()}`;
-          used.add(id);
-          results.push({
-            id,
-            ...template,
-            image_url: `https://picsum.photos/seed/${encodeURIComponent(query)}-${idx}/600/400`,
-            timestamp: new Date(Date.now() - Math.random() * 8 * 60 * 60 * 1000).toISOString()
-          });
-        }
+      // Score based on matches
+      searchTerms.forEach(term => {
+        // Title match = highest priority
+        if (titleLower.includes(term)) score += 10;
+        // Excerpt match = medium priority
+        if (excerptLower.includes(term)) score += 5;
+        // Keyword match = lower priority
+        if (keywordLower.includes(term)) score += 3;
+        // Hashtag match = lowest priority
+        if (hashtagLower.includes(term)) score += 2;
       });
-    }
+
+      // Only include items that match at least one search term
+      if (score > 0) {
+        // Add template's base score for tie-breaking
+        const finalScore = score + (template.score || 0) / 1000;
+        scored.push({
+          ...template,
+          _score: finalScore,
+          _idx: idx
+        });
+      }
+    });
   }
 
-  // If no keyword matches, return empty
-  return results.sort((a, b) => b.score - a.score).slice(0, 12);
+  // Deduplicate by title and sort by score
+  const seen = new Set();
+  const deduped = scored
+    .sort((a, b) => b._score - a._score)
+    .filter(item => {
+      if (seen.has(item.title)) return false;
+      seen.add(item.title);
+      return true;
+    });
+
+  // Return top 12 results with generated IDs and timestamps
+  return deduped
+    .slice(0, 12)
+    .map((item, i) => ({
+      id: `trend-${i}-${Date.now()}`,
+      title: item.title,
+      excerpt: item.excerpt,
+      source: item.source,
+      platform: item.platform,
+      hashtag: item.hashtag,
+      url: item.url,
+      score: item.score,
+      volume: item.volume,
+      image_url: `https://picsum.photos/seed/${encodeURIComponent(query)}-${item._idx}/600/400`,
+      timestamp: new Date(Date.now() - Math.random() * 8 * 60 * 60 * 1000).toISOString()
+    }));
 }
 
 /**

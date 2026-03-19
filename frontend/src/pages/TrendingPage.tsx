@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, AlertCircle, Loader, Zap, Share2, Search, Bookmark, X } from 'lucide-react';
+import { Flame, AlertCircle, Loader, Zap, Share2, Search, Bookmark, X, Save } from 'lucide-react';
 import * as api from '../lib/api';
 import { useCompanyStore } from '../store/companyStore';
 import type { TrendingItem } from '../types';
+
+interface SavedSearch {
+  id: string;
+  query: string;
+}
 
 const PLATFORM_COLORS = {
   reddit: { bg: 'bg-red-500/10', icon: 'text-red-500', border: 'border-red-500/30' },
@@ -32,10 +37,12 @@ export function TrendingPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [trendingItems, setTrendingItems] = useState<TrendingItem[]>([]);
   const [savedItems, setSavedItems] = useState<TrendingItem[]>([]);
+  const [savedSearches, setSavedSearches] = useState<SavedSearch[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [savingSearch, setSavingSearch] = useState(false);
 
   // Get keywords for current company
   const suggestedKeywords = currentCompany
@@ -43,8 +50,9 @@ export function TrendingPage() {
     : ['trending', 'news', 'tech'];
 
   useEffect(() => {
-    // Load saved items on mount
+    // Load saved items and searches on mount
     fetchSavedItems();
+    fetchSavedSearches();
   }, []);
 
   const fetchSavedItems = async () => {
@@ -55,6 +63,15 @@ export function TrendingPage() {
       setSavedIds(ids);
     } catch (err) {
       console.error('Failed to fetch saved items:', err);
+    }
+  };
+
+  const fetchSavedSearches = async () => {
+    try {
+      const response = await api.getSavedSearches();
+      setSavedSearches(response.data || []);
+    } catch (err) {
+      console.error('Failed to fetch saved searches:', err);
     }
   };
 
@@ -104,6 +121,33 @@ export function TrendingPage() {
   const handleRemoveSaved = (itemId: string) => {
     setSavedItems(savedItems.filter(item => item.id !== itemId));
     setSavedIds(new Set(Array.from(savedIds).filter(id => id !== itemId)));
+  };
+
+  const handleSaveSearch = async () => {
+    if (!searchQuery.trim()) return;
+
+    setSavingSearch(true);
+    try {
+      await api.saveSearch(searchQuery);
+      await fetchSavedSearches();
+    } catch (err) {
+      console.error('Failed to save search:', err);
+    } finally {
+      setSavingSearch(false);
+    }
+  };
+
+  const handleDeleteSearch = async (id: string) => {
+    try {
+      await api.deleteSearch(id);
+      setSavedSearches(savedSearches.filter(s => s.id !== id));
+    } catch (err) {
+      console.error('Failed to delete search:', err);
+    }
+  };
+
+  const handleQuickSearch = (query: string) => {
+    handleSearch(query);
   };
 
   const timeAgoFormatter = (timestamp: string): string => {
@@ -258,16 +302,68 @@ export function TrendingPage() {
           </div>
 
           {/* Search Bar */}
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-            <input
-              type="text"
-              placeholder="Search trending topics... (e.g., airport wifi, real estate investing)"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-noir-surface border border-noir-border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-primary/50 transition-colors"
-            />
+          <div className="relative mb-4 flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+              <input
+                type="text"
+                placeholder="Search trending topics... (e.g., airport wifi, real estate investing)"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-noir-surface border border-noir-border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-primary/50 transition-colors"
+              />
+            </div>
+            {searchQuery.trim() && (
+              <motion.button
+                onClick={handleSaveSearch}
+                disabled={savingSearch}
+                className="px-3 py-2.5 bg-accent-primary/10 hover:bg-accent-primary/20 text-accent-primary rounded-lg font-semibold transition-all duration-200 flex items-center gap-1.5 min-h-[44px] whitespace-nowrap"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {savingSearch ? (
+                  <Loader className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                <span className="hidden sm:inline text-sm">Save</span>
+              </motion.button>
+            )}
           </div>
+
+          {/* Saved Searches */}
+          {savedSearches.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs text-text-muted mb-2 font-semibold">Saved Searches</p>
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {savedSearches.map((search) => (
+                  <motion.div
+                    key={search.id}
+                    className="relative group"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                  >
+                    <motion.button
+                      onClick={() => handleQuickSearch(search.query)}
+                      className="px-3 py-1.5 bg-accent-primary/10 border border-accent-primary/30 rounded-lg text-xs font-semibold text-accent-primary hover:border-accent-primary/50 whitespace-nowrap transition-all min-h-[36px]"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      💾 {search.query}
+                    </motion.button>
+                    <motion.button
+                      onClick={() => handleDeleteSearch(search.id)}
+                      className="absolute -top-2 -right-2 hidden group-hover:flex items-center justify-center w-5 h-5 bg-accent-danger rounded-full text-white opacity-0 group-hover:opacity-100 transition-all"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <X className="w-3 h-3" />
+                    </motion.button>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Keyword Suggestions */}
           {!searchQuery && (

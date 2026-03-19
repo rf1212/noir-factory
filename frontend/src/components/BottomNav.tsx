@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Newspaper, Layers2, Flame, Settings } from 'lucide-react';
+import { Newspaper, Layers2, Search, Sparkles, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface NavItem {
@@ -9,10 +9,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Feed', path: '/', icon: <Newspaper className="w-6 h-6" /> },
-  { label: 'Queue', path: '/queue', icon: <Layers2 className="w-6 h-6" /> },
-  { label: 'Trending', path: '/trending', icon: <Flame className="w-6 h-6" /> },
-  { label: 'Settings', path: '/settings', icon: <Settings className="w-6 h-6" /> },
+  { label: 'Feed', path: '/', icon: <Newspaper className="w-5 h-5" /> },
+  { label: 'Queue', path: '/queue', icon: <Layers2 className="w-5 h-5" /> },
+  { label: 'Explore', path: '/trending', icon: <Search className="w-5 h-5" /> },
+  { label: 'Bot', path: '/bot', icon: <Sparkles className="w-5 h-5" /> },
+  { label: 'Settings', path: '/settings', icon: <Settings className="w-5 h-5" /> },
 ];
 
 export function BottomNav() {
@@ -43,7 +44,7 @@ export function BottomNav() {
               </motion.div>
 
               {/* Label - hidden by default, shown on hover for mobile */}
-              <span className="text-xs font-semibold tracking-wide uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <span className="text-[10px] font-semibold tracking-wide uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 {item.label}
               </span>
 

@@ -226,3 +226,20 @@ export function saveTrendingItem(item: {
 export function getSavedTrending() {
   return apiCall('/trending/saved');
 }
+
+export function saveSearch(query: string) {
+  return apiCall('/trending/save-search', {
+    method: 'POST',
+    body: { query }
+  });
+}
+
+export function getSavedSearches() {
+  return apiCall('/trending/saved-searches');
+}
+
+export function deleteSearch(id: string) {
+  return apiCall(`/trending/saved-searches/${id}`, {
+    method: 'DELETE'
+  });
+}

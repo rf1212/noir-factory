@@ -4,10 +4,29 @@
  * Uses sharp for high-performance image processing
  */
 
-const sharp = require('sharp');
 const fs = require('fs').promises;
 const { getSupabaseAdmin } = require('../db/supabase');
 const logger = require('../utils/logger');
+
+let sharp;
+try {
+  sharp = require('sharp');
+} catch (error) {
+  logger.warn('Sharp module not available - image resizer will not function');
+  sharp = null;
+}
+
+/**
+ * Check if sharp is available
+ */
+function sharpAvailable() {
+  if (!sharp) {
+    const msg = 'Image resizer service not available - sharp dependency is not installed';
+    logger.warn(msg);
+    return false;
+  }
+  return true;
+}
 
 /**
  * Get platform specifications for image dimensions
@@ -92,6 +111,10 @@ function getDefaultDimensions(platform, contentType) {
  */
 async function resizeForPlatform(inputPathOrBuffer, platform, contentType = 'image') {
   try {
+    if (!sharpAvailable()) {
+      throw new Error('Image resizer not available - sharp dependency is not installed');
+    }
+
     logger.info(`[ImageResizer] Resizing for ${platform} (${contentType})`);
 
     // Get target dimensions
@@ -170,6 +193,10 @@ async function resizeForPlatform(inputPathOrBuffer, platform, contentType = 'ima
  */
 async function resizeForAllPlatforms(inputPathOrBuffer, platforms, contentType = 'image') {
   try {
+    if (!sharpAvailable()) {
+      throw new Error('Image resizer not available - sharp dependency is not installed');
+    }
+
     logger.info(`[ImageResizer] Resizing for ${platforms.length} platforms`);
     const results = [];
 
@@ -206,6 +233,10 @@ async function resizeForAllPlatforms(inputPathOrBuffer, platforms, contentType =
  */
 async function generateTextOverlay(text, width, height, options = {}) {
   try {
+    if (!sharpAvailable()) {
+      throw new Error('Image resizer not available - sharp dependency is not installed');
+    }
+
     const {
       fontSize = 48,
       fontColor = '#FFFFFF',
@@ -272,6 +303,10 @@ async function generateQuoteCard(
   gradientColors = ['#1a1a2e', '#16213e']
 ) {
   try {
+    if (!sharpAvailable()) {
+      throw new Error('Image resizer not available - sharp dependency is not installed');
+    }
+
     logger.info(`[ImageResizer] Generating quote card: "${quoteText.substring(0, 50)}..."`);
 
     const startColor = gradientColors[0] || '#1a1a2e';
@@ -353,6 +388,10 @@ async function generateQuoteCard(
  */
 async function compositeImages(baseBuffer, overlayBuffer, options = {}) {
   try {
+    if (!sharpAvailable()) {
+      throw new Error('Image resizer not available - sharp dependency is not installed');
+    }
+
     const { top = 0, left = 0, opacity = 1 } = options;
 
     const composited = await sharp(baseBuffer)

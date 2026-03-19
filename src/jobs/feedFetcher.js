@@ -104,12 +104,53 @@ async function fetchAllFeeds() {
 
           // Try to extract image URL from various possible fields
           let imageUrl = null;
+
+          // 1. Check direct image fields
           if (item.image) {
             imageUrl = typeof item.image === 'string' ? item.image : item.image.url;
           } else if (item['media:thumbnail']) {
             imageUrl = typeof item['media:thumbnail'] === 'string'
               ? item['media:thumbnail']
               : item['media:thumbnail'].url;
+          }
+
+          // 2. Check media:content field
+          if (!imageUrl && item['media:content']) {
+            const mediaContent = Array.isArray(item['media:content'])
+              ? item['media:content'][0]
+              : item['media:content'];
+            if (mediaContent && mediaContent.url) {
+              imageUrl = mediaContent.url;
+            }
+          }
+
+          // 3. Parse content:encoded for <img> tags
+          if (!imageUrl && item.content) {
+            const imgRegex = /<img[^>]+src=["']([^"']+)["']/i;
+            const match = item.content.match(imgRegex);
+            if (match && match[1]) {
+              imageUrl = match[1];
+            }
+          }
+
+          // 4. Check enclosures array for image
+          if (!imageUrl && item.enclosures && item.enclosures.length > 0) {
+            const imageEnclosure = item.enclosures.find(enc =>
+              enc.type && enc.type.startsWith('image/')
+            );
+            if (imageEnclosure) {
+              imageUrl = imageEnclosure.url;
+            }
+          }
+
+          // 5. Check Reddit-specific thumbnail field
+          if (!imageUrl && item.thumbnail) {
+            imageUrl = item.thumbnail;
+          }
+
+          // 6. Generate placeholder if no image found
+          if (!imageUrl) {
+            imageUrl = `https://picsum.photos/seed/${encodeURIComponent(sourceGuid)}/600/400`;
           }
 
           // Insert new content item

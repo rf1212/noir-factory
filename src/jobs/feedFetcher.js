@@ -6,7 +6,7 @@
 
 const cron = require('node-cron');
 const Parser = require('rss-parser');
-const { getSupabase } = require('../db/local-adapter');
+const { getSupabaseAdmin } = require('../db/supabase');
 const logger = require('../utils/logger');
 
 const parser = new Parser({
@@ -33,12 +33,12 @@ async function fetchAllFeeds() {
   isProcessing = true;
 
   try {
-    const db = getSupabase();
+    const db = getSupabaseAdmin();
 
     // Get all active feeds from rss_feeds table
     const { data: feeds, error: feedsError } = await db
       .from('rss_feeds')
-      .select('id, company_id, name, url, is_active')
+      .select('id, company_id, feed_name, feed_url, is_active')
       .eq('is_active', true);
 
     if (feedsError) {
@@ -58,22 +58,22 @@ async function fetchAllFeeds() {
 
     for (const feed of feeds) {
       try {
-        logger.debug(`Fetching feed: ${feed.name} (${feed.url})`);
+        logger.debug(`Fetching feed: ${feed.feed_name} (${feed.feed_url})`);
 
         let parsedFeed;
         try {
-          parsedFeed = await parser.parseURL(feed.url);
+          parsedFeed = await parser.parseURL(feed.feed_url);
         } catch (parseError) {
-          logger.warn(`Failed to parse feed "${feed.name}": ${parseError.message}`);
+          logger.warn(`Failed to parse feed "${feed.feed_name}": ${parseError.message}`);
           continue;
         }
 
         if (!parsedFeed.items || parsedFeed.items.length === 0) {
-          logger.debug(`Feed "${feed.name}" has no items`);
+          logger.debug(`Feed "${feed.feed_name}" has no items`);
           continue;
         }
 
-        logger.debug(`Feed "${feed.name}" has ${parsedFeed.items.length} items`);
+        logger.debug(`Feed "${feed.feed_name}" has ${parsedFeed.items.length} items`);
 
         // Process each item
         for (const item of parsedFeed.items) {
@@ -131,7 +131,7 @@ async function fetchAllFeeds() {
             .single();
 
           if (insertError) {
-            logger.warn(`Failed to insert content from feed "${feed.name}": ${insertError.message}`);
+            logger.warn(`Failed to insert content from feed "${feed.feed_name}": ${insertError.message}`);
             continue;
           }
 
@@ -143,7 +143,7 @@ async function fetchAllFeeds() {
         }
 
       } catch (feedErr) {
-        logger.error(`Error processing feed "${feed.name}":`, feedErr.message);
+        logger.error(`Error processing feed "${feed.feed_name}":`, feedErr.message);
       }
     }
 

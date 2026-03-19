@@ -12,9 +12,10 @@ const logger = require('../utils/logger');
 const parser = new Parser({
   customFields: {
     item: [
-      ['content:encoded', 'content'],
-      ['id', 'redditId'],
-      ['media:thumbnail', 'image']
+      ['content:encoded', 'contentEncoded'],
+      ['media:content', 'mediaContent'],
+      ['media:thumbnail', 'mediaThumbnail'],
+      ['description', 'descriptionRaw']
     ]
   }
 });
@@ -97,60 +98,58 @@ async function fetchAllFeeds() {
             continue;
           }
 
-          // Extract content
-          const content = item.contentSnippet || item.content || item.description || '';
+          // Extract content — try multiple fields, strip HTML tags for plain text
+          const rawHtml = item.descriptionRaw || item.contentEncoded || item.content || item.description || '';
+          const plainText = rawHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+          const content = plainText || item.contentSnippet || '';
           const author = item['dc:creator'] || item.creator || item.author || 'unknown';
           const publishedAt = item.pubDate || item.isoDate || new Date().toISOString();
 
-          // Try to extract image URL from various possible fields
+          // Extract image — try every possible source
           let imageUrl = null;
 
-          // 1. Check direct image fields
-          if (item.image) {
-            imageUrl = typeof item.image === 'string' ? item.image : item.image.url;
-          } else if (item['media:thumbnail']) {
-            imageUrl = typeof item['media:thumbnail'] === 'string'
-              ? item['media:thumbnail']
-              : item['media:thumbnail'].url;
+          // 1. media:content (RSS standard — used by Reddit via rss.app)
+          if (item.mediaContent) {
+            const mc = item.mediaContent;
+            if (typeof mc === 'string') imageUrl = mc;
+            else if (mc.$ && mc.$.url) imageUrl = mc.$.url;
+            else if (mc.url) imageUrl = mc.url;
           }
 
-          // 2. Check media:content field
-          if (!imageUrl && item['media:content']) {
-            const mediaContent = Array.isArray(item['media:content'])
-              ? item['media:content'][0]
-              : item['media:content'];
-            if (mediaContent && mediaContent.url) {
-              imageUrl = mediaContent.url;
-            }
+          // 2. media:thumbnail
+          if (!imageUrl && item.mediaThumbnail) {
+            const mt = item.mediaThumbnail;
+            if (typeof mt === 'string') imageUrl = mt;
+            else if (mt.$ && mt.$.url) imageUrl = mt.$.url;
+            else if (mt.url) imageUrl = mt.url;
           }
 
-          // 3. Parse content:encoded for <img> tags
-          if (!imageUrl && item.content) {
-            const imgRegex = /<img[^>]+src=["']([^"']+)["']/i;
-            const match = item.content.match(imgRegex);
-            if (match && match[1]) {
-              imageUrl = match[1];
-            }
+          // 3. Extract from raw XML — media:content url attribute
+          if (!imageUrl && rawHtml) {
+            const mediaMatch = rawHtml.match(/media:content[^>]*url=["']([^"']+)["']/i);
+            if (mediaMatch) imageUrl = mediaMatch[1];
           }
 
-          // 4. Check enclosures array for image
-          if (!imageUrl && item.enclosures && item.enclosures.length > 0) {
-            const imageEnclosure = item.enclosures.find(enc =>
-              enc.type && enc.type.startsWith('image/')
-            );
-            if (imageEnclosure) {
-              imageUrl = imageEnclosure.url;
-            }
+          // 4. Extract <img> tags from HTML content
+          if (!imageUrl && rawHtml) {
+            const imgMatch = rawHtml.match(/<img[^>]+src=["']([^"']+)["']/i);
+            if (imgMatch) imageUrl = imgMatch[1];
           }
 
-          // 5. Check Reddit-specific thumbnail field
-          if (!imageUrl && item.thumbnail) {
-            imageUrl = item.thumbnail;
+          // 5. Enclosures
+          if (!imageUrl && item.enclosures) {
+            const imgEnc = item.enclosures.find(e => e.type && e.type.startsWith('image/'));
+            if (imgEnc) imageUrl = imgEnc.url;
           }
 
-          // 6. Generate placeholder if no image found
+          // 6. Decode HTML entities in image URL
+          if (imageUrl) {
+            imageUrl = imageUrl.replace(/&amp;/g, '&');
+          }
+
+          // 7. Fallback placeholder
           if (!imageUrl) {
-            imageUrl = `https://picsum.photos/seed/${encodeURIComponent(sourceGuid)}/600/400`;
+            imageUrl = `https://picsum.photos/seed/${encodeURIComponent(sourceGuid).substring(0,30)}/600/400`;
           }
 
           // Insert new content item

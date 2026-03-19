@@ -526,7 +526,7 @@ router.get('/status', requireAuth, requireCompanyContext, async (req, res) => {
     res.json({
       success: true,
       data: {
-        enabled: configs && configs.length > 0 && configs[0].enabled,
+        enabled: configs && configs.length > 0 && (configs[0].is_active || configs[0].enabled),
         configs: configs || []
       }
     });
@@ -562,22 +562,21 @@ router.put('/status', requireAuth, requireCompanyContext, async (req, res) => {
         .from('engagement_bot_configs')
         .insert([{
           company_id: req.company.id,
-          platform: 'all',
-          enabled: enabled !== undefined ? enabled : true,
-          settings: {}
+          platform: 'instagram',
+          is_active: enabled !== undefined ? enabled : true
         }])
         .select()
         .single();
 
       if (error) throw error;
-      return res.json({ success: true, data: config });
+      return res.json({ success: true, data: { ...config, enabled: config.is_active } });
     }
 
     // Update existing config
     const { data: config, error } = await supabase
       .from('engagement_bot_configs')
       .update({
-        enabled: enabled !== undefined ? enabled : existing.enabled,
+        is_active: enabled !== undefined ? enabled : existing.is_active,
         updated_at: new Date().toISOString()
       })
       .eq('id', existing.id)
@@ -585,7 +584,7 @@ router.put('/status', requireAuth, requireCompanyContext, async (req, res) => {
       .single();
 
     if (error) throw error;
-    res.json({ success: true, data: config });
+    res.json({ success: true, data: { ...config, enabled: config.is_active } });
   } catch (error) {
     logger.error('Update engagement status error:', error);
     res.status(500).json({

@@ -15,9 +15,9 @@ const OAUTH_URLS = {
 };
 
 const SCOPES = {
-  instagram: 'pages_manage_posts,instagram_basic,instagram_content_publish,pages_read_engagement,public_profile',
-  facebook: 'pages_manage_posts,pages_read_engagement,public_profile',
-  threads: 'threads_basic,threads_content_publish,threads_read_replies',
+  instagram: 'public_profile,email',
+  facebook: 'public_profile,email',
+  threads: 'public_profile,email',
   tiktok: 'user.info.basic,video.publish',
   twitter: 'tweet.read tweet.write users.read like.write follows.write',
   linkedin: 'r_liteprofile w_member_social',

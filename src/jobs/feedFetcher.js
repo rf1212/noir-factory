@@ -65,8 +65,16 @@ async function fetchAllFeeds() {
         let rawXml = '';
         try {
           // Fetch raw XML first for image extraction
-          const resp = await fetch(feed.feed_url, { headers: { 'User-Agent': 'Noir-Factory/1.0' } });
-          rawXml = await resp.text();
+          const https = require('https');
+          const http = require('http');
+          const mod = feed.feed_url.startsWith('https') ? https : http;
+          rawXml = await new Promise((resolve, reject) => {
+            mod.get(feed.feed_url, { headers: { 'User-Agent': 'Noir-Factory/1.0' } }, (res) => {
+              let data = '';
+              res.on('data', chunk => data += chunk);
+              res.on('end', () => resolve(data));
+            }).on('error', reject);
+          });
           parsedFeed = await parser.parseString(rawXml);
         } catch (parseError) {
           logger.warn(`Failed to parse feed "${feed.feed_name}": ${parseError.message}`);
@@ -76,13 +84,16 @@ async function fetchAllFeeds() {
         // Build image map from raw XML — extract media:content url for each item
         const imageMap = {};
         const itemBlocks = rawXml.split('<item>');
+        logger.debug(`Image extraction: ${itemBlocks.length - 1} item blocks found`);
         for (const block of itemBlocks) {
           const guidMatch = block.match(/<guid[^>]*>([^<]+)<\/guid>/i) || block.match(/<link>([^<]+)<\/link>/i);
           const mediaMatch = block.match(/media:content[^>]*url=["']([^"']+)["']/i);
           if (guidMatch && mediaMatch) {
-            imageMap[guidMatch[1].trim()] = mediaMatch[1].replace(/&amp;/g, '&');
+            const cleanUrl = mediaMatch[1].replace(/&amp;/g, '&');
+            imageMap[guidMatch[1].trim()] = cleanUrl;
           }
         }
+        logger.info(`Image map: ${Object.keys(imageMap).length} images found for "${feed.feed_name}"`);
 
         if (!parsedFeed.items || parsedFeed.items.length === 0) {
           logger.debug(`Feed "${feed.feed_name}" has no items`);

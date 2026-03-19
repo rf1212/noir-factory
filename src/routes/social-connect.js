@@ -8,12 +8,39 @@
 
 const express = require('express');
 const oauthService = require('../services/social-oauth.service');
-const { getDatabase } = require('../db/local-adapter');
+const { getSupabaseAdmin } = require('../db/supabase');
 const logger = require('../utils/logger');
 
 const router = express.Router();
 
 const PLATFORMS = ['instagram', 'facebook', 'threads', 'tiktok', 'twitter', 'linkedin'];
+
+/**
+ * GET /api/connect/status — MUST be before /:platform to avoid matching "status" as a platform
+ */
+router.get('/status', (req, res) => {
+  try {
+    const companyId = req.headers['x-company-id'] || 'default-company';
+    const platforms = {};
+    for (const platform of PLATFORMS) {
+      if (!oauthService.isPlatformConfigured(platform)) {
+        platforms[platform] = { connected: false, reason: `${platform.toUpperCase()}_CLIENT_ID not configured` };
+      } else {
+        platforms[platform] = { connected: false };
+      }
+    }
+    // Check Meta specifically since user has META_APP_ID
+    if (process.env.META_APP_ID) {
+      ['instagram', 'facebook', 'threads'].forEach(p => {
+        platforms[p] = { connected: false, reason: 'Not connected yet — tap Connect to authorize' };
+      });
+    }
+    res.json({ success: true, company_id: companyId, platforms });
+  } catch (error) {
+    logger.error('Error in /connect/status:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 /**
  * GET /api/connect/:platform

@@ -140,7 +140,16 @@ async function fetchAllFeeds() {
             imageUrl = imageMap[itemGuid];
           }
 
-          // 1. media:content (RSS standard — used by Reddit via rss.app)
+          // 1. media:content parsed by rss-parser (returns {$: {url: '...'}})
+          if (!imageUrl && item.mediaContent) {
+            if (item.mediaContent.$ && item.mediaContent.$.url) {
+              imageUrl = item.mediaContent.$.url;
+            } else if (typeof item.mediaContent === 'object' && item.mediaContent.url) {
+              imageUrl = item.mediaContent.url;
+            }
+          }
+
+          // 1b. media:content from imageMap (backup)
           if (!imageUrl && item.mediaContent) {
             const mc = item.mediaContent;
             if (typeof mc === 'string') imageUrl = mc;

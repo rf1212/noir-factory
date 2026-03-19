@@ -243,3 +243,11 @@ export function deleteSearch(id: string) {
     method: 'DELETE'
   });
 }
+
+// Text Generation
+export function generateText(promptType: string, context: string) {
+  return apiCall('/content-jobs/generate-text', {
+    method: 'POST',
+    body: { prompt_type: promptType, context }
+  });
+}

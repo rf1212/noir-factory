@@ -43,7 +43,17 @@ export const useContentStore = create<ContentState>((set, get) => ({
     set({ loadingItems: true });
     try {
       const result = await api.getContentItems(feedId);
-      const items = result.items || result.data || [];
+      const items = (result.items || result.data || []).map((item: any) => ({
+        id: item.id,
+        title: item.source_title || item.title || 'Untitled',
+        excerpt: item.source_content || item.excerpt || '',
+        source_url: item.source_url || '',
+        source_image: item.source_image_url || item.source_image || null,
+        published_at: item.source_published_at || item.created_at || '',
+        feed_id: item.feed_id || '',
+        feed_name: item.rss_feeds?.feed_name || item.feed_name || '',
+        review_status: item.review_status || 'pending',
+      }));
       set({ contentItems: items, currentItemIndex: 0, loadingItems: false });
     } catch (error) {
       set({

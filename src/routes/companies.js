@@ -143,6 +143,125 @@ router.put('/:id', requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/companies/:id/prompts
+ * Get saved prompts for a company
+ */
+router.get('/:id/prompts', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Verify user has access to this company
+    const hasAccess = req.user.companies?.some(c => c.id === id);
+    if (!hasAccess && !req.user.isService && !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('company_prompts')
+      .select('*')
+      .eq('company_id', id);
+
+    if (error && error.code !== 'PGRST116') {
+      logger.error('Get company prompts error:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+
+    // Format prompts by type
+    const prompts = {};
+    (data || []).forEach(p => {
+      prompts[p.prompt_type] = {
+        system_prompt: p.system_prompt,
+        user_prompt_template: p.user_prompt_template
+      };
+    });
+
+    res.json({
+      success: true,
+      prompts
+    });
+
+  } catch (error) {
+    logger.error('Get company prompts error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/companies/:id/prompts
+ * Save/update prompts for a company
+ * Body: { script_generation: { system_prompt, user_prompt_template }, ... }
+ */
+router.put('/:id/prompts', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const prompts = req.body;
+
+    // Verify user has access to this company
+    const hasAccess = req.user.companies?.some(c => c.id === id);
+    if (!hasAccess && !req.user.isService && !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied'
+      });
+    }
+
+    const supabase = getSupabaseAdmin();
+
+    // Upsert each prompt type
+    const results = [];
+    for (const [promptType, promptData] of Object.entries(prompts)) {
+      if (promptData && typeof promptData === 'object') {
+        const { data, error } = await supabase
+          .from('company_prompts')
+          .upsert({
+            company_id: id,
+            prompt_type: promptType,
+            system_prompt: promptData.system_prompt || '',
+            user_prompt_template: promptData.user_prompt_template || '',
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'company_id,prompt_type'
+          })
+          .select()
+          .single();
+
+        if (error) {
+          logger.error(`Error upserting prompt ${promptType}:`, error);
+          return res.status(500).json({
+            success: false,
+            error: `Failed to save ${promptType} prompt`
+          });
+        }
+        results.push(data);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Prompts saved successfully',
+      prompts: results
+    });
+
+  } catch (error) {
+    logger.error('Update company prompts error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * POST /api/companies
  * Create new company (admin only)
  */

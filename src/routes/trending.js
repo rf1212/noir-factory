@@ -655,6 +655,52 @@ function generateSearchResults(query) {
 }
 
 /**
+ * Fetch real Reddit results for keyword search
+ * Reddit search is public and doesn't require API key
+ */
+async function fetchRedditResults(query) {
+  try {
+    const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=relevance&t=week&limit=10`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Noir-Factory/1.0 (Educational Research)'
+      }
+    });
+
+    if (!response.ok) {
+      logger.warn(`Reddit API error: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    const posts = data.data?.children || [];
+
+    return posts
+      .filter(post => post.data && post.data.title)
+      .map((post, idx) => {
+        const p = post.data;
+        return {
+          id: `reddit-${p.id}-${Date.now()}`,
+          title: p.title,
+          excerpt: (p.selftext || '').substring(0, 200),
+          source: p.subreddit,
+          platform: 'reddit',
+          url: `https://reddit.com${p.permalink}`,
+          score: p.ups || 0,
+          volume: p.num_comments || 0,
+          image_url: p.thumbnail && p.thumbnail.startsWith('http')
+            ? p.thumbnail
+            : `https://picsum.photos/seed/reddit-${p.id}/600/400`,
+          timestamp: new Date(p.created_utc * 1000).toISOString()
+        };
+      });
+  } catch (error) {
+    logger.warn('Failed to fetch Reddit results:', error.message);
+    return [];
+  }
+}
+
+/**
  * GET /api/trending?q=keyword
  * Search for trending topics by keyword
  * Query params:
@@ -676,13 +722,19 @@ router.get('/', async (req, res) => {
     }
 
     // Generate mock results based on keywords
-    const results = generateSearchResults(q);
+    const mockResults = generateSearchResults(q);
+
+    // Fetch real Reddit results in parallel
+    const redditResults = await fetchRedditResults(q);
+
+    // Merge results: mock first, then Reddit
+    const allResults = [...mockResults, ...redditResults];
 
     res.json({
       success: true,
-      data: results,
+      data: allResults,
       query: q,
-      count: results.length
+      count: allResults.length
     });
 
   } catch (error) {

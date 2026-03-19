@@ -343,6 +343,106 @@ router.get('/:id/repurposed', async (req, res) => {
 });
 
 /**
+ * POST /api/content-jobs/generate-text
+ * Generate text using OpenRouter API with company prompts
+ */
+router.post('/generate-text', async (req, res) => {
+  try {
+    const { 'x-company-id': companyId } = req.headers;
+    const { prompt_type, context } = req.body;
+
+    if (!companyId) {
+      return res.status(400).json({
+        success: false,
+        error: 'X-Company-ID header is required'
+      });
+    }
+
+    if (!prompt_type || !context) {
+      return res.status(400).json({
+        success: false,
+        error: 'prompt_type and context are required'
+      });
+    }
+
+    const client = getSupabaseAdmin();
+
+    // Get saved prompt for this type
+    let { data: promptData, error: promptError } = await client
+      .from('company_prompts')
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('prompt_type', prompt_type)
+      .single();
+
+    if (promptError && promptError.code !== 'PGRST116') {
+      logger.warn('Error fetching prompt:', promptError);
+    }
+
+    // Default prompts
+    const defaultPrompts = {
+      script_generation: 'Write a compelling short video script based on this content:',
+      hook: 'Write an engaging hook that grabs attention immediately:',
+      caption: 'Write a catchy caption for this content:',
+      hashtags: 'Generate 5-10 relevant hashtags for this content:',
+      first_comment: 'Write a compelling first comment to engage viewers:'
+    };
+
+    const systemPrompt = promptData?.system_prompt || defaultPrompts[prompt_type] || 'You are a social media content expert.';
+    const userTemplate = promptData?.user_prompt_template || defaultPrompts[prompt_type] || 'Create content based on:';
+
+    // Call OpenRouter API
+    const openrouterApiKey = process.env.OPENROUTER_API_KEY;
+    if (!openrouterApiKey) {
+      return res.status(500).json({
+        success: false,
+        error: 'OpenRouter API key not configured'
+      });
+    }
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openrouterApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'anthropic/claude-sonnet-4',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `${userTemplate}\n\n${context}` }
+        ],
+        max_tokens: 500
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      logger.error('OpenRouter API error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to generate text'
+      });
+    }
+
+    const data = await response.json();
+    const generatedText = data.choices?.[0]?.message?.content || '';
+
+    res.json({
+      success: true,
+      text: generatedText
+    });
+
+  } catch (error) {
+    logger.error('POST /content-jobs/generate-text error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * POST /api/content-jobs/reorder
  * Reorder queued jobs by priority
  */

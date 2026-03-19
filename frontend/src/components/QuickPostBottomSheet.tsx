@@ -106,18 +106,34 @@ export function QuickPostBottomSheet({
     }
     setGeneratingContent(true);
     try {
-      // Toast placeholder - AI generation coming soon
-      console.log('AI generation coming soon for content');
+      const result = await api.generateText(selectedPromptStyle, content);
+      if (result.success && result.text) {
+        setContent(result.text);
+      } else {
+        setError('Failed to generate content');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setGeneratingContent(false);
     }
   };
 
   const handleGenerateComment = async () => {
+    if (!content.trim()) {
+      setError('Please enter some content first');
+      return;
+    }
     setGeneratingComment(true);
     try {
-      // Toast placeholder - AI generation coming soon
-      console.log('AI generation coming soon for first comment');
+      const result = await api.generateText('first_comment', content);
+      if (result.success && result.text) {
+        setFirstComment(result.text);
+      } else {
+        setError('Failed to generate comment');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generation failed');
     } finally {
       setGeneratingComment(false);
     }

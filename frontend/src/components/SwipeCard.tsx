@@ -127,15 +127,14 @@ export function SwipeCard({ item, onApprove, onReject, onRefresh, isLoading }: S
 
         {/* Content */}
         <div className="relative z-10 h-full flex flex-col p-6">
-          {/* Image */}
-          {item.source_image && (
-            <div className="relative mb-4 overflow-hidden rounded-2xl flex-shrink-0">
+          {/* Image — always show, use placeholder if no image */}
+          <div className="relative mb-4 overflow-hidden rounded-2xl flex-shrink-0">
               <img
-                src={item.source_image}
+                src={item.source_image || `https://picsum.photos/seed/${item.id || 'default'}/600/300`}
                 alt={item.title}
                 className="w-full h-48 object-cover"
                 onError={(e) => {
-                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.src = `https://picsum.photos/seed/${Date.now()}/600/300`;
                 }}
               />
               {/* Gradient overlay on image */}
@@ -148,17 +147,18 @@ export function SwipeCard({ item, onApprove, onReject, onRefresh, isLoading }: S
                 </span>
               </div>
             </div>
-          )}
 
           {/* Title */}
           <h2 className="text-2xl font-black tracking-tight text-text-primary line-clamp-3 mb-3">
             {item.title}
           </h2>
 
-          {/* Excerpt */}
-          <p className="text-sm text-text-secondary line-clamp-3 flex-1 mb-4 leading-relaxed">
-            {item.excerpt}
-          </p>
+          {/* Content — show full post text, scrollable */}
+          <div className="flex-1 mb-4 overflow-y-auto max-h-[200px]">
+            <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">
+              {item.excerpt}
+            </p>
+          </div>
 
           {/* Footer */}
           <div className="flex items-center justify-between pt-3 border-t border-noir-border">

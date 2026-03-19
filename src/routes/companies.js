@@ -173,13 +173,10 @@ router.get('/:id/prompts', requireAuth, async (req, res) => {
       });
     }
 
-    // Format prompts by type
+    // Format prompts by type — return simple string (system_prompt) for Settings page
     const prompts = {};
     (data || []).forEach(p => {
-      prompts[p.prompt_type] = {
-        system_prompt: p.system_prompt,
-        user_prompt_template: p.user_prompt_template
-      };
+      prompts[p.prompt_type] = p.system_prompt || p.user_prompt_template || '';
     });
 
     res.json({
@@ -217,33 +214,46 @@ router.put('/:id/prompts', requireAuth, async (req, res) => {
 
     const supabase = getSupabaseAdmin();
 
-    // Upsert each prompt type
+    // Upsert each prompt type — accepts both string and object formats
     const results = [];
     for (const [promptType, promptData] of Object.entries(prompts)) {
-      if (promptData && typeof promptData === 'object') {
-        const { data, error } = await supabase
-          .from('company_prompts')
-          .upsert({
-            company_id: id,
-            prompt_type: promptType,
-            system_prompt: promptData.system_prompt || '',
-            user_prompt_template: promptData.user_prompt_template || '',
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'company_id,prompt_type'
-          })
-          .select()
-          .single();
+      if (!promptData) continue;
 
-        if (error) {
-          logger.error(`Error upserting prompt ${promptType}:`, error);
-          return res.status(500).json({
-            success: false,
-            error: `Failed to save ${promptType} prompt`
-          });
-        }
-        results.push(data);
+      // Handle both string format (from Settings) and object format
+      let systemPrompt = '';
+      let userTemplate = '';
+      if (typeof promptData === 'string') {
+        systemPrompt = promptData;
+      } else if (typeof promptData === 'object') {
+        systemPrompt = promptData.system_prompt || promptData.text || '';
+        userTemplate = promptData.user_prompt_template || '';
       }
+
+      // Delete existing then insert (safer than upsert without unique constraint)
+      await supabase.from('company_prompts')
+        .delete()
+        .eq('company_id', id)
+        .eq('prompt_type', promptType);
+
+      const { data, error } = await supabase
+        .from('company_prompts')
+        .insert({
+          company_id: id,
+          prompt_type: promptType,
+          name: promptType,
+          system_prompt: systemPrompt,
+          user_prompt_template: userTemplate,
+          is_default: true,
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        logger.error(`Error saving prompt ${promptType}:`, error);
+        continue; // Don't fail entire request for one prompt
+      }
+      results.push(data);
     }
 
     res.json({

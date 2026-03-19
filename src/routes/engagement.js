@@ -526,7 +526,7 @@ router.get('/status', requireAuth, requireCompanyContext, async (req, res) => {
     res.json({
       success: true,
       data: {
-        enabled: configs && configs.length > 0 && (configs[0].is_active || configs[0].enabled),
+        enabled: configs && configs.length > 0 ? (configs[0].is_active === true) : false,
         configs: configs || []
       }
     });

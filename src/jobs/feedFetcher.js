@@ -62,11 +62,26 @@ async function fetchAllFeeds() {
         logger.debug(`Fetching feed: ${feed.feed_name} (${feed.feed_url})`);
 
         let parsedFeed;
+        let rawXml = '';
         try {
-          parsedFeed = await parser.parseURL(feed.feed_url);
+          // Fetch raw XML first for image extraction
+          const resp = await fetch(feed.feed_url, { headers: { 'User-Agent': 'Noir-Factory/1.0' } });
+          rawXml = await resp.text();
+          parsedFeed = await parser.parseString(rawXml);
         } catch (parseError) {
           logger.warn(`Failed to parse feed "${feed.feed_name}": ${parseError.message}`);
           continue;
+        }
+
+        // Build image map from raw XML — extract media:content url for each item
+        const imageMap = {};
+        const itemBlocks = rawXml.split('<item>');
+        for (const block of itemBlocks) {
+          const guidMatch = block.match(/<guid[^>]*>([^<]+)<\/guid>/i) || block.match(/<link>([^<]+)<\/link>/i);
+          const mediaMatch = block.match(/media:content[^>]*url=["']([^"']+)["']/i);
+          if (guidMatch && mediaMatch) {
+            imageMap[guidMatch[1].trim()] = mediaMatch[1].replace(/&amp;/g, '&');
+          }
         }
 
         if (!parsedFeed.items || parsedFeed.items.length === 0) {
@@ -108,8 +123,14 @@ async function fetchAllFeeds() {
           // Extract image — try every possible source
           let imageUrl = null;
 
+          // 0. Check imageMap from raw XML parsing (most reliable for media:content)
+          const itemGuid = item.guid || item.link || url;
+          if (imageMap[itemGuid]) {
+            imageUrl = imageMap[itemGuid];
+          }
+
           // 1. media:content (RSS standard — used by Reddit via rss.app)
-          if (item.mediaContent) {
+          if (!imageUrl && item.mediaContent) {
             const mc = item.mediaContent;
             if (typeof mc === 'string') imageUrl = mc;
             else if (mc.$ && mc.$.url) imageUrl = mc.$.url;

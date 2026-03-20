@@ -1,9 +1,10 @@
 /**
  * Engagement Bot Routes — Noir Factory Frontend
- * 
+ *
  * Architecture:
- * Noir Factory /bot dashboard (UI) → these routes → n8n webhook (backend)
- * n8n executes engagement actions → logs results to Supabase engagement_log
+ * Noir Factory /bot dashboard (UI) → these routes → Supabase (data layer)
+ * n8n scheduled workflow (every 5 min) → reads configs from Supabase →
+ *   executes engagement actions via Meta Graph API → logs results to engagement_log
  * Dashboard reads engagement_log → displays results
  */
 
@@ -12,86 +13,123 @@ const router = express.Router();
 const logger = require('../utils/logger');
 const { getSupabaseAdmin } = require('../db/supabase');
 
-const N8N_WEBHOOK_URL = process.env.N8N_ENGAGEMENT_WEBHOOK_URL || 
-  'https://n8n.autogrowthhub.com/webhook/noir-engagement-bot';
-
-/**
- * Forward request to n8n backend and return response
- */
-async function callN8nEngagementBot(payload) {
-  const response = await fetch(N8N_WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(30000)
-  });
-  
-  if (!response.ok) {
-    throw new Error(`n8n webhook returned ${response.status}: ${await response.text()}`);
-  }
-  
-  return response.json();
-}
-
 /**
  * POST /api/engagement/run-cycle
- * Noir Factory dashboard triggers engagement cycle → sends to n8n backend
+ * Log a manual trigger request — n8n scheduled bot picks up active configs automatically
  */
 router.post('/run-cycle', async (req, res) => {
   try {
+    const supabase = getSupabaseAdmin();
     const { platform, company_id } = req.body;
     const companyId = company_id || req.headers['x-company-id'] || 'default-company';
 
-    logger.info(`[Engagement Bot] Triggering cycle via n8n | company: ${companyId} | platform: ${platform || 'all'}`);
+    logger.info(`[Engagement Bot] Manual cycle trigger | company: ${companyId} | platform: ${platform || 'all'}`);
 
-    const result = await callN8nEngagementBot({
-      action: 'run_cycle',
+    // Log the manual trigger
+    await supabase.from('engagement_log').insert({
       company_id: companyId,
-      platform: platform || null,
-      triggered_from: 'noir_factory_dashboard',
-      timestamp: new Date().toISOString()
+      platform: platform || 'all',
+      action_type: 'manual_trigger',
+      success: true,
+      created_at: new Date().toISOString()
     });
+
+    // Get current config status
+    let query = supabase
+      .from('engagement_bot_configs')
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('is_active', true);
+    if (platform) query = query.eq('platform', platform);
+    const { data: configs } = await query;
+
+    // Check token status
+    const { data: integrations } = await supabase
+      .from('company_integrations')
+      .select('platform, page_id, expires_at')
+      .eq('company_id', companyId)
+      .eq('is_active', true);
+
+    const hasToken = integrations && integrations.length > 0;
 
     res.json({
       success: true,
-      message: `Engagement cycle triggered via n8n`,
+      message: 'Engagement cycle acknowledged. n8n scheduled bot runs every 5 minutes and will pick up active configs.',
       company_id: companyId,
       platform: platform || 'all',
-      n8n_result: result
+      active_configs: configs?.length || 0,
+      token_status: hasToken ? 'present' : 'MISSING — Chairman must refresh Facebook token from Meta Business Suite',
+      backend: 'n8n_scheduled',
+      next_run: 'Within 5 minutes (n8n cron)'
     });
 
   } catch (error) {
-    logger.error('Error triggering engagement cycle via n8n:', error);
+    logger.error('Error in manual engagement trigger:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 /**
  * GET /api/engagement/bot/status
- * Get engagement bot status from n8n
+ * Get engagement bot status directly from Supabase
  */
 router.get('/bot/status', async (req, res) => {
   try {
+    const supabase = getSupabaseAdmin();
     const companyId = req.headers['x-company-id'] || 'default-company';
 
-    const result = await callN8nEngagementBot({
-      action: 'get_status',
-      company_id: companyId
-    });
+    // Get active configs
+    const { data: configs } = await supabase
+      .from('engagement_bot_configs')
+      .select('*')
+      .eq('company_id', companyId)
+      .eq('is_active', true);
+
+    // Get recent activity
+    const { data: recentLogs } = await supabase
+      .from('engagement_log')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    // Get template count
+    const { data: templates } = await supabase
+      .from('engagement_templates')
+      .select('id')
+      .eq('company_id', companyId)
+      .eq('is_active', true);
+
+    // Check token status
+    const { data: integrations } = await supabase
+      .from('company_integrations')
+      .select('platform, page_id, expires_at')
+      .eq('company_id', companyId)
+      .eq('is_active', true);
+
+    const fbIntegration = integrations?.find(i => i.platform === 'facebook');
+    const tokenExpired = fbIntegration?.expires_at ? new Date(fbIntegration.expires_at) < new Date() : true;
 
     res.json({
       success: true,
-      status: result.bot_status || {
+      status: {
         is_running: true,
-        backend: 'n8n',
-        webhook_url: N8N_WEBHOOK_URL,
-        message: 'Engagement bot running via n8n'
-      },
-      n8n_result: result
+        backend: 'n8n_scheduled',
+        schedule: 'Every 5 minutes',
+        active_configs: configs?.length || 0,
+        platforms: [...new Set(configs?.map(c => c.platform) || [])],
+        template_count: templates?.length || 0,
+        facebook_token_status: fbIntegration ? (tokenExpired ? 'EXPIRED' : 'VALID') : 'MISSING',
+        recent_activity: recentLogs?.slice(0, 5) || [],
+        total_actions_logged: recentLogs?.length || 0,
+        message: fbIntegration && !tokenExpired
+          ? 'Engagement bot operational'
+          : 'Bot ready but Facebook token needs refresh from Meta Business Suite'
+      }
     });
 
   } catch (error) {
-    logger.error('Error getting bot status from n8n:', error);
+    logger.error('Error getting bot status:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -179,15 +217,9 @@ router.put('/config', async (req, res) => {
 
     if (error) throw error;
 
-    // Notify n8n of config update
-    await callN8nEngagementBot({
-      action: 'update_config',
-      company_id: companyId,
-      platform,
-      config: configData
-    }).catch(e => logger.warn('n8n config update notify failed:', e.message));
+    // n8n reads configs directly from Supabase on its schedule — no webhook notify needed
 
-    res.json({ success: true, config: data?.[0], backend: 'n8n' });
+    res.json({ success: true, config: data?.[0], backend: 'n8n_scheduled' });
 
   } catch (error) {
     logger.error('Error updating engagement config:', error);

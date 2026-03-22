@@ -26,6 +26,7 @@ const metaIntegrationsRoutes = require('./routes/meta-integrations');
 const socialConnectRoutes = require('./routes/social-connect');
 const trendingRoutes = require('./routes/trending');
 const analyticsRoutes = require('./routes/analytics');
+const automationRoutes = require('./routes/automation');
 const logger = require('./utils/logger');
 
 const app = express();
@@ -129,6 +130,7 @@ app.use('/api/integrations/meta', metaIntegrationsRoutes); // Meta Business Suit
 app.use('/api/connect', socialConnectRoutes); // Social media OAuth
 app.use('/api/trending', trendingRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/automation', automationRoutes);
 
 app.use('/api', apiRoutes); // Mount general API routes LAST to avoid conflicts
 
@@ -195,14 +197,51 @@ async function initializeApp() {
   try {
     logger.info('⏳ Initializing Noir Factory services...');
 
-    // Start Engagement Bot if configured
+    // Start Engagement Bot (legacy v1 — config-driven)
     try {
       const { startEngagementBot } = require('./jobs/engagementBot');
-      const botInterval = process.env.ENGAGEMENT_BOT_INTERVAL || '*/5 * * * *'; // Every 5 minutes by default
+      const botInterval = process.env.ENGAGEMENT_BOT_INTERVAL || '*/5 * * * *';
       startEngagementBot(botInterval);
-      logger.info('✅ Engagement bot started');
+      logger.info('✅ Engagement bot (v1) started');
     } catch (botError) {
-      logger.warn('⚠️  Engagement bot not started:', botError.message);
+      logger.warn('⚠️  Engagement bot (v1) not started:', botError.message);
+    }
+
+    // Start Automation Engine (v2 — ported from Cloudflare Worker)
+    try {
+      const cron = require('node-cron');
+      const { seedAutomationStatus } = require('./services/automation-engine');
+      const { runEngagementBot } = require('./services/engagement-bot-v2');
+      const { runHealthMonitor } = require('./services/health-monitor');
+      const { runTokenMonitor } = require('./services/token-monitor');
+      const { runDeadLetterQueue } = require('./services/dead-letter-queue');
+
+      // Seed automation_status rows if they don't exist
+      await seedAutomationStatus();
+
+      // Engagement bot v2: every 5 minutes
+      cron.schedule('*/5 * * * *', async () => {
+        try { await runEngagementBot(); } catch (e) { logger.error('Engagement bot v2 cron error:', e.message); }
+      });
+
+      // Health monitor: every 15 minutes
+      cron.schedule('*/15 * * * *', async () => {
+        try { await runHealthMonitor(); } catch (e) { logger.error('Health monitor cron error:', e.message); }
+      });
+
+      // Token monitor: daily at 2 AM UTC
+      cron.schedule('0 2 * * *', async () => {
+        try { await runTokenMonitor(); } catch (e) { logger.error('Token monitor cron error:', e.message); }
+      });
+
+      // Dead letter queue: every 5 minutes
+      cron.schedule('*/5 * * * *', async () => {
+        try { await runDeadLetterQueue(); } catch (e) { logger.error('DLQ cron error:', e.message); }
+      });
+
+      logger.info('✅ Automation engine (v2) started — engagement bot, health monitor, token monitor, DLQ');
+    } catch (autoErr) {
+      logger.warn('⚠️  Automation engine not started:', autoErr.message);
     }
 
     // Start Telegram bot if configured

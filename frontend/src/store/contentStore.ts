@@ -99,12 +99,20 @@ export const useContentStore = create<ContentState>((set, get) => ({
   loadingJobs: false,
   jobsError: null,
 
-  fetchContentJobs: async () => {
-    set({ loadingJobs: true });
+  fetchContentJobs: async (showLoading = false) => {
+    if (showLoading) set({ loadingJobs: true });
     try {
       const result = await api.getContentJobs();
-      const jobs = result.jobs || result.data || [];
-      set({ jobs, loadingJobs: false });
+      const newJobs = result.jobs || result.data || [];
+      const current = get().jobs;
+      // Only update if data actually changed to avoid unnecessary re-renders
+      const changed = JSON.stringify(newJobs.map((j: {id:string,review_status:string,publish_status:string}) => ({id:j.id,rs:j.review_status,ps:j.publish_status}))) !==
+                      JSON.stringify(current.map((j: {id:string,review_status:string,publish_status:string}) => ({id:j.id,rs:j.review_status,ps:j.publish_status})));
+      if (changed || showLoading) {
+        set({ jobs: newJobs, loadingJobs: false });
+      } else {
+        if (showLoading) set({ loadingJobs: false });
+      }
     } catch (error) {
       set({
         jobsError: error instanceof Error ? error.message : 'Failed to fetch jobs',

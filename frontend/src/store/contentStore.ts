@@ -19,6 +19,7 @@ interface ContentState {
   jobsError: string | null;
   fetchContentJobs: () => Promise<void>;
   createContentJob: (jobData: unknown) => Promise<ContentJob>;
+  deleteContentJob: (jobId: string) => Promise<void>;
 
   // Feeds
   feeds: Feed[];
@@ -125,6 +126,15 @@ export const useContentStore = create<ContentState>((set, get) => ({
       const job = await api.createContentJob(jobData as any);
       set((state) => ({ jobs: [...state.jobs, job] }));
       return job;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  deleteContentJob: async (jobId) => {
+    try {
+      await api.deleteContentJob(jobId);
+      set((state) => ({ jobs: state.jobs.filter((j) => j.id !== jobId) }));
     } catch (error) {
       throw error;
     }

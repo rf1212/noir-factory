@@ -287,16 +287,15 @@ export function QueuePage() {
                         <div><p className="text-text-muted text-xs uppercase tracking-wider mb-1">Job ID</p><p className="text-text-secondary font-mono text-xs break-all bg-noir-bg/50 p-2 rounded-lg border border-noir-border">{job.id}</p></div>
                         <div><p className="text-text-muted text-xs uppercase tracking-wider mb-1">Platforms</p><div className="flex flex-wrap gap-2">{job.target_platforms?.map(p => <span key={p} className="px-2 py-1 bg-noir-bg border border-noir-border text-text-secondary text-xs rounded-lg">{p}</span>)}</div></div>
                         {job.layout_type && <div><p className="text-text-muted text-xs uppercase tracking-wider mb-1">Layout</p><p className="text-text-primary font-semibold">{job.layout_type}</p></div>}
-                        {job.caption_text && <div><p className="text-text-muted text-xs uppercase tracking-wider mb-1">Caption</p><p className="text-text-secondary text-xs bg-noir-bg/50 p-2 rounded-lg border border-noir-border line-clamp-2">{job.caption_text}</p>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(job.id); }}
-                          disabled={deletingId === job.id}
-                          className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-accent-danger/10 text-accent-danger hover:bg-accent-danger/20 transition-colors text-xs font-semibold disabled:opacity-50"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          {deletingId === job.id ? 'Deleting...' : 'Delete Job'}
-                        </button>
-</div>}
+                        {job.caption_text && <div><p className="text-text-muted text-xs uppercase tracking-wider mb-1">Caption</p><p className="text-text-secondary text-xs bg-noir-bg/50 p-2 rounded-lg border border-noir-border line-clamp-2">{job.caption_text}</p></div>}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(job.id); }}
+                        disabled={deletingId === job.id}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 mt-1 rounded-xl bg-accent-danger/10 text-accent-danger hover:bg-accent-danger/20 transition-colors text-xs font-semibold disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        {deletingId === job.id ? 'Removing...' : 'Remove from queue'}
+                      </button>
                       </div>
                     )}
                   </Reorder.Item>

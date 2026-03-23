@@ -95,9 +95,9 @@ router.post('/', async (req, res) => {
     const jobData = {
       company_id: companyId,
       content_item_id: resolvedItemId,
-      type: resolvedType,
-      platforms: resolvedPlatforms,
-      first_comment: resolvedFirstComment,
+      job_type: resolvedType,
+      target_platforms: resolvedPlatforms,
+      first_comment_text: resolvedFirstComment,
       avatar_name: avatar_name || null,
       caption_text: caption_text || null,
       hashtags_text: hashtags_text || null,
@@ -106,7 +106,8 @@ router.post('/', async (req, res) => {
       layout_type: layout_type || null,
       is_evergreen: is_evergreen || false,
       evergreen_interval_days: evergreen_interval_days || null,
-      status: 'queued',
+      review_status: 'pending_review',
+      publish_status: 'draft',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };

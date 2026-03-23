@@ -61,7 +61,20 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { 'x-company-id': companyId, authorization } = req.headers;
-    const { contentItemId, type, platforms, firstComment } = req.body;
+    // Accept both camelCase (legacy) and snake_case (frontend) field names
+    const {
+      contentItemId, content_item_id,
+      type, job_type,
+      platforms, target_platforms,
+      firstComment, first_comment,
+      avatar_name, caption_text, hashtags_text,
+      hook_text, on_screen_text, layout_type,
+      is_evergreen, evergreen_interval_days
+    } = req.body;
+    const resolvedItemId = contentItemId || content_item_id;
+    const resolvedType = type || job_type || 'video_with_avatar';
+    const resolvedPlatforms = platforms || target_platforms || [];
+    const resolvedFirstComment = firstComment || first_comment || '';
 
     if (!companyId) {
       return res.status(400).json({
@@ -70,10 +83,10 @@ router.post('/', async (req, res) => {
       });
     }
 
-    if (!contentItemId || !type) {
+    if (!resolvedItemId) {
       return res.status(400).json({
         success: false,
-        error: 'contentItemId and type are required'
+        error: 'content_item_id is required'
       });
     }
 
@@ -81,10 +94,18 @@ router.post('/', async (req, res) => {
 
     const jobData = {
       company_id: companyId,
-      content_item_id: contentItemId,
-      type,
-      platforms: platforms || [],
-      first_comment: firstComment || '',
+      content_item_id: resolvedItemId,
+      type: resolvedType,
+      platforms: resolvedPlatforms,
+      first_comment: resolvedFirstComment,
+      avatar_name: avatar_name || null,
+      caption_text: caption_text || null,
+      hashtags_text: hashtags_text || null,
+      hook_text: hook_text || null,
+      on_screen_text: on_screen_text || null,
+      layout_type: layout_type || null,
+      is_evergreen: is_evergreen || false,
+      evergreen_interval_days: evergreen_interval_days || null,
       status: 'queued',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()

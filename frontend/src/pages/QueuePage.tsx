@@ -22,8 +22,8 @@ export function QueuePage() {
   const [isReordering, setIsReordering] = useState(false);
 
   useEffect(() => {
-    fetchContentJobs();
-    const interval = setInterval(fetchContentJobs, 5000);
+    fetchContentJobs(true); // show loading spinner on first load only
+    const interval = setInterval(() => fetchContentJobs(false), 10000); // silent background poll every 10s
     return () => clearInterval(interval);
   }, [fetchContentJobs]);
 
@@ -303,9 +303,7 @@ export function QueuePage() {
                   <Reorder.Item
                     key={job.id}
                     value={job}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
+                    initial={false}
                     className="bg-noir-surface border border-noir-border rounded-2xl overflow-hidden hover:border-accent-primary/30 transition-all cursor-grab active:cursor-grabbing hover:shadow-lg hover:shadow-accent-primary/10"
                   >
                     <motion.button
@@ -455,10 +453,7 @@ export function QueuePage() {
               return (
                 <motion.div
                   key={job.id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
+                  initial={false}
                   className="bg-noir-surface border border-noir-border rounded-2xl overflow-hidden hover:border-accent-primary/30 transition-colors"
                 >
                   <motion.button

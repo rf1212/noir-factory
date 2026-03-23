@@ -69,6 +69,21 @@ export function createContentJob(jobData: {
   is_evergreen?: boolean;
   evergreen_interval_days?: number;
 }) {
+  // Map to camelCase for live backend compatibility
+  const payload = {
+    contentItemId: jobData.content_item_id,
+    type: jobData.job_type,
+    platforms: jobData.target_platforms,
+    firstComment: jobData.first_comment || '',
+    avatar_name: jobData.avatar_name,
+    caption_text: jobData.caption_text,
+    hashtags_text: jobData.hashtags_text,
+    hook_text: jobData.hook_text,
+    on_screen_text: jobData.on_screen_text,
+    layout_type: jobData.layout_type,
+    is_evergreen: jobData.is_evergreen,
+    evergreen_interval_days: jobData.evergreen_interval_days,
+  };
   return apiCall('/content-jobs', { method: 'POST', body: jobData });
 }
 

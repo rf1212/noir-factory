@@ -12,24 +12,32 @@ services:
       - key: PORT
         value: "8080"
       - key: CORS_ORIGINS
-        value: https://noir-factory-production-control-230432435181.us-west1.run.app
-      - key: AIRTABLE_TOKEN
+        value: https://noir-factory.onrender.com
+      - key: CF_ANALYTICS_TOKEN
+        value: ACENNSoZNVR-rVq_RRb8n0QbOa2mdhNdW8R55kAf
+      - key: CF_ZONE_PROXITAP
+        value: 9268dbbbf5139d5bfeff82291d2d2d76
+      - key: CF_ZONE_ALLADRE
+        value: 9fcef25111f01f17abd8fa6f38bee316
+      - key: SUPABASE_URL
+        value: https://ghzvppbkuudkpzlcidlx.supabase.co
+      - key: SUPABASE_ANON_KEY
         sync: false
-      - key: HCTI_USER_ID
+      - key: SUPABASE_SERVICE_KEY
         sync: false
-      - key: HCTI_API_KEY
+      - key: AUTH_PASSWORD
+        sync: false
+      - key: META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
       - key: SEGMIND_API_KEY
         sync: false
-      - key: PUBLER_API_KEY
+      - key: RUNPOD_API_KEY
         sync: false
-      - key: PUBLER_WORKSPACE_ID
-        sync: false
-      - key: PUBLER_ACCOUNT_ID
-        sync: false
-      - key: REDDIT_RSS_URL
+      - key: RUNPOD_WORKER_URL
         sync: false
     healthCheckPath: /healthz
     autoDeploy: true

@@ -85,15 +85,20 @@ export function QueuePage() {
   }, [deleteContentJob]);
 
   const handleProcessNow = useCallback(async () => {
+    if (!batchEnabled) return;
     setIsProcessingNow(true);
     try {
+      const result = await (api as any).processBatch();
+      if (result?.approved !== undefined) {
+        console.log(`Process Now: ${result.approved} job(s) approved and queued`);
+      }
       await fetchContentJobs(false);
     } catch (error) {
       console.error('Failed to process batch:', error);
     } finally {
       setIsProcessingNow(false);
     }
-  }, [fetchContentJobs]);
+  }, [fetchContentJobs, batchEnabled]);
 
   const handleReorderQueued = useCallback(async (reorderedJobs: typeof jobs) => {
     setIsReordering(true);

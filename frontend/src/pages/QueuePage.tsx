@@ -36,6 +36,7 @@ export function QueuePage() {
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isProcessingNow, setIsProcessingNow] = useState(false);
+  const [processResult, setProcessResult] = useState<{approved: number, ts: number} | null>(null);
   const [queuedJobs, setQueuedJobs] = useState<typeof jobs>([]);
   const [isReordering, setIsReordering] = useState(false);
   const [batchEnabled, setBatchEnabled] = useState(true);
@@ -87,12 +88,14 @@ export function QueuePage() {
   const handleProcessNow = useCallback(async () => {
     if (!batchEnabled) return;
     setIsProcessingNow(true);
+    setProcessResult(null);
     try {
       const result = await (api as any).processBatch();
-      if (result?.approved !== undefined) {
-        console.log(`Process Now: ${result.approved} job(s) approved and queued`);
-      }
+      const approved = result?.approved ?? 0;
+      setProcessResult({ approved, ts: Date.now() });
       await fetchContentJobs(false);
+      // Auto-clear feedback after 5s
+      setTimeout(() => setProcessResult(null), 5000);
     } catch (error) {
       console.error('Failed to process batch:', error);
     } finally {
@@ -221,15 +224,28 @@ export function QueuePage() {
                 </p>
               )}
             </div>
-            <motion.button
-              onClick={handleProcessNow}
-              disabled={isProcessingNow || !batchEnabled}
-              className="px-4 py-2 bg-accent-primary hover:shadow-lg hover:shadow-accent-primary/30 text-noir-bg rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm flex-shrink-0"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {isProcessingNow ? 'Processing...' : batchEnabled ? 'Process Now' : 'Paused'}
-            </motion.button>
+            <div className="flex flex-col items-end gap-1 flex-shrink-0">
+              <motion.button
+                onClick={handleProcessNow}
+                disabled={isProcessingNow || !batchEnabled}
+                className="px-4 py-2 bg-accent-primary hover:shadow-lg hover:shadow-accent-primary/30 text-noir-bg rounded-lg font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap text-sm"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {isProcessingNow ? '⏳ Processing...' : batchEnabled ? 'Process Now' : 'Paused'}
+              </motion.button>
+              {processResult !== null && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-xs font-semibold text-accent-success whitespace-nowrap"
+                >
+                  {processResult.approved > 0
+                    ? `✅ ${processResult.approved} job${processResult.approved !== 1 ? 's' : ''} sent to pipeline`
+                    : '⚠️ No jobs to process'}
+                </motion.p>
+              )}
+            </div>
           </div>
         </div>
 

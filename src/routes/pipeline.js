@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { getSupabase } = require('../db/local-adapter');
+const { getSupabaseAdmin: getSupabase } = require('../db/supabase');
 const { runPipeline, processApprovedJobs } = require('../services/pipeline.v2');
 const airtable = require('../services/airtable.service');
 const logger = require('../utils/logger');

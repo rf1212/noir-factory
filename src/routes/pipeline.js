@@ -179,4 +179,33 @@ router.post('/one-off', async (req, res) => {
   }
 });
 
+
+// POST /api/pipeline/process-now
+// Approve all pending_review/queued jobs then run the pipeline
+router.post('/process-now', async (req, res) => {
+  try {
+    const { 'x-company-id': companyId } = req.headers;
+    const db = getSupabase();
+
+    // First: approve all jobs that are pending_review or queued
+    const { data: pending } = await db
+      .from('content_jobs')
+      .update({ review_status: 'approved' })
+      .eq('company_id', companyId)
+      .in('review_status', ['pending_review', 'queued'])
+      .eq('publish_status', 'draft')
+      .select('id');
+
+    const approved = pending ? pending.length : 0;
+    logger.info(`process-now: approved ${approved} jobs for company ${companyId}`);
+
+    // Then: trigger the pipeline
+    res.json({ success: true, message: `Processing started — ${approved} job(s) queued`, approved });
+    processApprovedJobs().catch(e => logger.error(`process-now error: ${e.message}`));
+  } catch (e) {
+    logger.error('POST /pipeline/process-now error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 module.exports = router;

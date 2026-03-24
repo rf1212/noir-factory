@@ -5,6 +5,7 @@
 
 require('dotenv').config();
 const express = require('express');
+const { loadServerConfig } = require('./utils/load-config');
 const { initializeDatabase, testConnection } = require('./db/local-adapter');
 const { startRSSMonitor } = require('./jobs/rssMonitor.v2');
 const apiRoutes = require('./routes/api');
@@ -332,62 +333,64 @@ async function initializeApp() {
  */
 async function startServer() {
   // Start listening IMMEDIATELY (Cloud Run requirement)
-  const server = app.listen(PORT, () => {
-    logger.info(`🚀 Noir Factory server running on port ${PORT}`);
-    logger.info(`📡 Health check: http://localhost:${PORT}/healthz`);
-    
-    // Initialize services AFTER server is listening
-    setImmediate(() => {
-      initializeApp().catch(err => {
-        logger.error('Post-startup initialization failed:', err.message);
+  const server = loadServerConfig().then(() => {
+  app.listen(PORT, () => {
+      logger.info(`🚀 Noir Factory server running on port ${PORT}`);
+      logger.info(`📡 Health check: http://localhost:${PORT}/healthz`);
+      
+      // Initialize services AFTER server is listening
+      setImmediate(() => {
+        initializeApp().catch(err => {
+          logger.error('Post-startup initialization failed:', err.message);
+        });
       });
     });
-  });
-
-  // Graceful shutdown
-  server.on('error', (error) => {
-    logger.error('Server error:', error.message);
-    if (error.code === 'EADDRINUSE') {
-      logger.error(`Port ${PORT} is already in use`);
-      process.exit(1);
-    }
-  });
-}
-
-// ─── Graceful Shutdown ──────────────────────────────────────────────────────
-// Track in-flight pipeline jobs so we don't kill them mid-process
-const activeJobs = new Set();
-
-function trackJob(jobId) { activeJobs.add(jobId); }
-function untrackJob(jobId) { activeJobs.delete(jobId); }
-
-async function gracefulShutdown(signal) {
-  logger.info(`${signal} received — shutting down gracefully...`);
-
-  if (activeJobs.size > 0) {
-    logger.info(`⏳ Waiting for ${activeJobs.size} in-flight pipeline job(s) to finish: ${[...activeJobs].join(', ')}`);
-    const maxWait = 15 * 60 * 1000; // 15 minutes max wait
-    const start = Date.now();
-    while (activeJobs.size > 0 && (Date.now() - start) < maxWait) {
-      await new Promise(r => setTimeout(r, 2000));
-    }
-    if (activeJobs.size > 0) {
-      logger.warn(`⚠️ Force-exiting with ${activeJobs.size} jobs still running after 15m timeout`);
-    } else {
-      logger.info('✅ All pipeline jobs completed — exiting cleanly');
-    }
+  
+    // Graceful shutdown
+    server.on('error', (error) => {
+      logger.error('Server error:', error.message);
+      if (error.code === 'EADDRINUSE') {
+        logger.error(`Port ${PORT} is already in use`);
+        process.exit(1);
+      }
+    });
   }
-
-  process.exit(0);
-}
-
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Handle unhandled rejections
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Don't exit process - just log it
+  
+  // ─── Graceful Shutdown ──────────────────────────────────────────────────────
+  // Track in-flight pipeline jobs so we don't kill them mid-process
+  const activeJobs = new Set();
+  
+  function trackJob(jobId) { activeJobs.add(jobId); }
+  function untrackJob(jobId) { activeJobs.delete(jobId); }
+  
+  async function gracefulShutdown(signal) {
+    logger.info(`${signal} received — shutting down gracefully...`);
+  
+    if (activeJobs.size > 0) {
+      logger.info(`⏳ Waiting for ${activeJobs.size} in-flight pipeline job(s) to finish: ${[...activeJobs].join(', ')}`);
+      const maxWait = 15 * 60 * 1000; // 15 minutes max wait
+      const start = Date.now();
+      while (activeJobs.size > 0 && (Date.now() - start) < maxWait) {
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      if (activeJobs.size > 0) {
+        logger.warn(`⚠️ Force-exiting with ${activeJobs.size} jobs still running after 15m timeout`);
+      } else {
+        logger.info('✅ All pipeline jobs completed — exiting cleanly');
+      }
+    }
+  
+    process.exit(0);
+  }
+  
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  
+  // Handle unhandled rejections
+  process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    // Don't exit process - just log it
+  });
 });
 
 // Handle uncaught exceptions

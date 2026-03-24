@@ -772,9 +772,9 @@ export function BotPage() {
                   className="bg-noir-bg p-4 rounded-lg border border-noir-border hover:border-accent-primary/30 transition-colors flex items-start justify-between gap-3 group"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-text-primary mb-2">{template.name}</p>
+                    <p className="font-semibold text-sm text-text-primary mb-2">{(template as any).template_text?.substring(0, 60) || (template as any).name || "Template"}</p>
                     <p className="text-xs text-text-secondary line-clamp-2">
-                      {template.content}
+                      {(template as any).template_text || (template as any).content}
                     </p>
                   </div>
                   <motion.button

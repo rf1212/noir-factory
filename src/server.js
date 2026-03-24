@@ -392,7 +392,8 @@ async function startServer() {
     logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
     // Don't exit process - just log it
   });
-});
+
+}
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {

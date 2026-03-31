@@ -131,8 +131,6 @@ class Predictor(BasePredictor):
                 "9",
                 "--save_file",
                 str(output_path),
-                "--num_persistent_param_in_dit",
-                "6000000000",
             ]
 
             log(f"[run] Launching inference (timeout={INFERENCE_TIMEOUT}s)...")

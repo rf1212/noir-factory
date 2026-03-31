@@ -133,6 +133,15 @@ class Predictor(BasePredictor):
                 str(output_path),
                 "--num_persistent_param_in_dit",
                 "0",
+                "--quant",
+                "fp8",
+                "--quant_dir",
+                str(
+                    WEIGHTS_DIR
+                    / "InfiniteTalk"
+                    / "quant_models"
+                    / "infinitetalk_single_fp8.safetensors"
+                ),
             ]
 
             log(f"[run] Launching inference (timeout={INFERENCE_TIMEOUT}s)...")

@@ -9,6 +9,7 @@ build:
     - "libsndfile1"
     - "libsndfile1-dev"
     - "git"
+    - "ninja-build"
   python_packages:
     - "torch==2.4.1"
     - "torchvision==0.19.1"

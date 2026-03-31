@@ -10,7 +10,7 @@ on:
 jobs:
   cog-push:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -30,6 +30,17 @@ jobs:
         with:
           token: ${{ secrets.REPLICATE_API_TOKEN }}
 
-      - name: Build & push
+      - name: Build & push (with retry)
         working-directory: runpod/infinitetalk/replicate
-        run: cog push r8.im/info-hash12/noir-factory-lipsync
+        run: |
+          for attempt in 1 2 3; do
+            echo "=== Push attempt $attempt ==="
+            if cog push r8.im/info-hash12/noir-factory-lipsync; then
+              echo "Push succeeded on attempt $attempt"
+              exit 0
+            fi
+            echo "Push failed on attempt $attempt, waiting 30s..."
+            sleep 30
+          done
+          echo "All push attempts failed"
+          exit 1

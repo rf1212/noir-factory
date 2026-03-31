@@ -6,6 +6,7 @@ uploads output MP4 to Supabase, returns public video URL as a string.
 """
 
 import os
+import sys
 import json
 import subprocess
 import tempfile
@@ -15,8 +16,19 @@ import httpx
 from cog import BasePredictor, Input
 from huggingface_hub import snapshot_download
 
+# Force unbuffered stdout so Cog logs appear in real time
+os.environ["PYTHONUNBUFFERED"] = "1"
+
 WEIGHTS_DIR = Path("/src/weights")
 INFINITETALK_REPO = Path("/src/InfiniteTalk")
+
+# Inference timeout: 20 minutes (generous for 14B model)
+INFERENCE_TIMEOUT = 1200
+
+
+def log(msg: str):
+    """Print with immediate flush so Replicate logs stream in real time."""
+    print(msg, flush=True)
 
 
 class Predictor(BasePredictor):
@@ -32,13 +44,13 @@ class Predictor(BasePredictor):
         ]:
             dest = WEIGHTS_DIR / local_name
             if dest.exists() and any(dest.iterdir()):
-                print(f"[weights] {local_name} cached")
+                log(f"[weights] {local_name} cached")
                 continue
-            print(f"[weights] Downloading {repo_id}...")
+            log(f"[weights] Downloading {repo_id}...")
             snapshot_download(repo_id=repo_id, local_dir=str(dest))
-            print(f"[weights] {local_name} done")
+            log(f"[weights] {local_name} done")
 
-        print("[setup] Ready.")
+        log("[setup] Ready.")
 
     def predict(
         self,
@@ -56,6 +68,7 @@ class Predictor(BasePredictor):
 
         env = os.environ.copy()
         env["PYTHONPATH"] = str(INFINITETALK_REPO)
+        env["PYTHONUNBUFFERED"] = "1"
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
@@ -63,11 +76,14 @@ class Predictor(BasePredictor):
             # ---- Download inputs ------------------------------------------------
             image_path = tmpdir / "input_image.jpg"
             audio_path = tmpdir / "input_audio.wav"
-            self._download(image_url, image_path)
-            self._download(audio_url, audio_path)
 
-            print(f"[run] Image: {image_path} ({image_path.stat().st_size} bytes)")
-            print(f"[run] Audio: {audio_path} ({audio_path.stat().st_size} bytes)")
+            log(f"[run] Downloading image from {image_url[:80]}...")
+            self._download(image_url, image_path)
+            log(f"[run] Image: {image_path} ({image_path.stat().st_size} bytes)")
+
+            log(f"[run] Downloading audio from {audio_url[:80]}...")
+            self._download(audio_url, audio_path)
+            log(f"[run] Audio: {audio_path} ({audio_path.stat().st_size} bytes)")
 
             # ---- Build input JSON -----------------------------------------------
             # CRITICAL: InfiniteTalk expects a SINGLE dict with these keys:
@@ -90,7 +106,7 @@ class Predictor(BasePredictor):
 
             # ---- Run inference --------------------------------------------------
             cmd = [
-                "python",
+                "python", "-u",  # -u forces unbuffered subprocess output
                 str(INFINITETALK_REPO / "generate_infinitetalk.py"),
                 "--ckpt_dir",
                 str(WEIGHTS_DIR / "Wan2.1-I2V-14B-480P"),
@@ -119,20 +135,44 @@ class Predictor(BasePredictor):
                 "0",
             ]
 
-            print(f"[run] Launching inference ...")
-            result = subprocess.run(
+            log(f"[run] Launching inference (timeout={INFERENCE_TIMEOUT}s)...")
+            log(f"[run] Command: {' '.join(cmd[:4])} ...")
+
+            # Stream subprocess stdout/stderr to our stdout so Cog logs show progress
+            proc = subprocess.Popen(
                 cmd,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # merge stderr into stdout
                 text=True,
+                bufsize=1,  # line buffered
                 cwd=str(INFINITETALK_REPO),
                 env=env,
             )
-            if result.returncode != 0:
-                err = result.stderr[-3000:] if result.stderr else "unknown error"
-                print(f"[run] STDERR:\n{err}")
-                raise RuntimeError(f"InfiniteTalk failed:\n{err}")
 
-            print("[run] Inference completed.")
+            # Stream output lines in real time
+            output_lines = []
+            try:
+                for line in proc.stdout:
+                    line = line.rstrip('\n')
+                    output_lines.append(line)
+                    log(f"[inference] {line}")
+
+                proc.wait(timeout=INFERENCE_TIMEOUT)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+                raise RuntimeError(
+                    f"InfiniteTalk timed out after {INFERENCE_TIMEOUT}s. "
+                    f"Last output: {output_lines[-5:] if output_lines else 'none'}"
+                )
+
+            if proc.returncode != 0:
+                last_lines = '\n'.join(output_lines[-50:]) if output_lines else "no output"
+                log(f"[run] Process failed with code {proc.returncode}")
+                log(f"[run] Last output:\n{last_lines}")
+                raise RuntimeError(f"InfiniteTalk failed (code {proc.returncode}):\n{last_lines[-3000:]}")
+
+            log("[run] Inference completed.")
 
             # ---- Locate output --------------------------------------------------
             output_mp4 = Path(str(output_path) + ".mp4")
@@ -153,11 +193,11 @@ class Predictor(BasePredictor):
                             f"{[str(p) for p in tmpdir.rglob('*')]}"
                         )
 
-            print(f"[run] Output: {output_mp4} ({output_mp4.stat().st_size} bytes)")
+            log(f"[run] Output: {output_mp4} ({output_mp4.stat().st_size} bytes)")
 
             # ---- Upload to Supabase ---------------------------------------------
             video_url = self._upload_to_supabase(output_mp4, job_id)
-            print(f"[run] Uploaded: {video_url}")
+            log(f"[run] Uploaded: {video_url}")
             return video_url
 
     # ---- Helpers ----------------------------------------------------------------
